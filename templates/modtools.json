@@ -1,0 +1,23 @@
+{
+  "scripts": ["scripts"],
+  "functionOwned": ["scripts/fight.mjs", "scripts/turn.mjs"],
+  "features": "docs/features",
+  "changes": "docs/changes",
+  "developing": "docs/DEVELOPING.md",
+  "manifest": "module.json",
+  "zip": {"path": "dist/<module-id>.zip", "include": ["module.json", "scripts", "styles", "lang"]},
+  "tests": "node tools/test/unit.mjs",
+  "mainBranch": "main",
+  "reviewPaths": ["scripts"],
+  "extraDocs": [],
+  "setupChecks": [
+    {"path": "../lythara-survey-sheet", "hint": "clone the Survey Sheet repo beside this one"},
+    {"path": "tools/test/data/spots.json", "hint": "copy the test data from the private project docs"}
+  ],
+  "finishList": [
+    "project doc for this module (what changed, what was verified)",
+    "the module's skill card, if the skill text changed",
+    "claude/foundry-version-baseline.md if an installed version changed",
+    "claude/docs-index.md rows and Last checked"
+  ]
+}

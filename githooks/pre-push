@@ -1,0 +1,11 @@
+#!/bin/sh
+# Copy this file to <mod repo>/tools/githooks/pre-push. `guide start` points core.hooksPath at that folder.
+# A push to main is refused unless `gate` stamped exactly this tree. Never push with --no-verify.
+# The tools live in foundry-mod-tools, found through $MODTOOLS or as a sibling of the mod repo.
+root="$(git rev-parse --show-toplevel)"
+tools="${MODTOOLS:-$root/../foundry-mod-tools}"
+if [ ! -f "$tools/gate.py" ]; then
+  echo "pre-push: foundry-mod-tools not found at $tools (clone it beside this repo or set MODTOOLS)" >&2
+  exit 1
+fi
+exec python3 "$tools/gate.py" --hook "$@"
