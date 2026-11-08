@@ -184,6 +184,18 @@ class TestDoccheckAndScan(Base):
         self.assertIn("check id al-1 used in both", out)
         self.assertIn("`noSuchFunction` is not found", out)
 
+    def test_external_names_file_and_untracked_doc_count_as_known(self):
+        append(self.repo, "docs/DEVELOPING.md", "\nPF2e's `measureDistanceCuboid` and the new `docs/features/delta.md`.\n")
+        code, out = run(self.repo, "doccheck")
+        self.assertIn("`measureDistanceCuboid` is not found", out)
+        self.assertIn("`delta.md` is not found", out)
+        write(self.repo, "docs/external-names.txt", "# other systems' code\nmeasureDistanceCuboid\n")
+        run(self.repo, "guide", "new-feature", "delta")      # untracked, not yet committed
+        write(self.repo, "docs/features/delta.md", read(self.repo, "docs/features/delta.md").replace("- (d-1) {live} ", "- (d-1) {live} delta still works"))
+        run(self.repo, "guide", "--index")
+        code, out = run(self.repo, "doccheck")
+        self.assertEqual(code, 0, out)
+
     def test_bad_shared_tag(self):
         append(self.repo, "docs/features/gamma.md", "- (ga-9) {shared:omega} nope\n")
         code, out = run(self.repo, "doccheck")

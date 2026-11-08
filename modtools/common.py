@@ -39,6 +39,7 @@ DEFAULTS = {
     "mainBranch": "main",
     "reviewPaths": [],                      # a change under these needs the review section
     "extraDocs": [],                        # other docs doccheck reads names from
+    "externalNames": "docs/external-names.txt",   # names from other systems' code the docs may quote (one per line)
 }
 
 

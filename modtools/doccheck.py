@@ -1,7 +1,8 @@
 """doccheck: do the docs still match the code?
 
 1. Names: every `backticked` name in DEVELOPING.md, the feature docs and `extraDocs`
-   must appear somewhere in the repo (the old doccheck's rule).
+   must appear somewhere in the repo (the old doccheck's rule), or in the tracked
+   `externalNames` file (names from other systems' code the docs quote, one per line).
 2. Ownership: every code file is owned whole by exactly one feature, or is functionOwned
    with every top-level function owned by exactly one feature. Owned names must exist.
 3. Check ids: unique across all feature docs; every check line is well formed.
@@ -17,9 +18,22 @@ INDEX_END = "<!-- feature-index:end -->"
 KNOWN = {"python3", "node", "npm", "npx", "git", "true", "false", "null"}
 
 
+def external_names(root, cfg):
+    p = os.path.join(root, cfg["externalNames"])
+    if not os.path.isfile(p):
+        return set()
+    out = set()
+    with open(p, encoding="utf-8") as f:
+        for line in f:
+            s = line.split("#", 1)[0].strip()
+            if s:
+                out.add(s)
+    return out
+
+
 def missing_names(root, cfg, docs):
     code = ""
-    for f in c.tracked_files(root):
+    for f in c.worktree_files(root):
         code += f + "\n"            # every path counts as a known name
         if f in docs or not c.is_text_file(f):
             continue
@@ -30,11 +44,11 @@ def missing_names(root, cfg, docs):
     # a doc may quote names that live in another doc (feature names, check ids): the corpus
     # for doc d is the code plus every other doc, never d itself
     texts = {d: c.read(root, d) for d in docs if os.path.isfile(os.path.join(root, d))}
-    seen, missing = set(KNOWN), []
+    seen, missing = set(KNOWN) | external_names(root, cfg), []
     for d, text in texts.items():
         corpus = code + "\n".join(t for k, t in texts.items() if k != d)
-        for raw in re.findall(r"`([^`\n]{2,80})`", text):
-            for name in re.split(r"[\s,/()=:;\[\]\"']+|\.\.\.", raw):
+        for raw in re.findall(r"`([^`\n]{2,80})`", re.sub(r"<!--.*?-->", "", text, flags=re.S)):
+            for name in re.split(r"[\s,/()=:;<>?\[\]\"']+|\.\.\.", raw):
                 name = name.strip(".'\"{}[]<>*")
                 if len(name) < 3 or name in seen or not re.search(r"[A-Za-z]", name):
                     continue
