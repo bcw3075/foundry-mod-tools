@@ -25,12 +25,14 @@ class Gate:
     def __init__(self, root, cfg):
         self.root, self.cfg = root, cfg
         self.lines = []
+        self.refused = False
 
     def ok(self, msg):
         self.lines.append(f"  ok   {msg}")
 
     def refuse(self, msg):
         self.lines.append(f"  FAIL {msg}")
+        self.refused = True
         raise c.Fail(msg)
 
     def run_checks(self):
@@ -209,7 +211,7 @@ class Gate:
         self.ok(f"stamp written for tree {tree[:12]}")
 
     def summary(self):
-        out = [f"gate: {'PASSED' if all(not l.startswith('  FAIL') for l in self.lines) else 'REFUSED'}"] + self.lines
+        out = [f"gate: {'REFUSED' if self.refused else 'PASSED'}"] + self.lines
         if getattr(self, "touched", None) is not None:
             out.append("\nReport skeleton for Rhea:")
             out.append(f"  version {self.version}; features touched: {', '.join(sorted(self.touched)) or 'none'}")
@@ -275,6 +277,7 @@ def main(argv=None):
             g.build_zip()
             g.stamp()
     except c.Fail as e:
+        g.refused = True
         print(g.summary())
         c.die(str(e))
     print(g.summary())
