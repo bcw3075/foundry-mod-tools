@@ -19,9 +19,10 @@ read `.modtools.json`, the feature docs' frontmatter and git, nothing else.
 2. Copy `templates/modtools.json` to the mod repo's root as `.modtools.json` and edit it.
 3. Copy `githooks/pre-push` to `tools/githooks/pre-push` in the mod repo (executable).
 4. Git-ignore `.private-words` and `.modtools-stamp.json`.
-5. Put the private word list in `.private-words` (one word or phrase per line). It never goes in
+5. List names from other systems' code that the docs quote in `docs/external-names.txt` (tracked; one per line) so the name check stays clean.
+6. Put the private word list in `.private-words` (one word or phrase per line). It never goes in
    the repo; keep the master copy somewhere private and copy it in at the start of a session.
-6. Add the two markers to `docs/DEVELOPING.md` where the feature index should go:
+7. Add the two markers to `docs/DEVELOPING.md` where the feature index should go:
    `<!-- feature-index:start -->` and `<!-- feature-index:end -->`, then `guide --index`.
 
 ## Every change
