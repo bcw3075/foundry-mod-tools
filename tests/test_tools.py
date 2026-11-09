@@ -339,6 +339,14 @@ class TestGate(Base):
         self.assertEqual(code, 0, out)
         self.assertIn("review waived", out)
 
+    def test_template_hint_is_not_a_review_or_a_waiver(self):
+        # the record template's Review hint runs over two lines and names a waiver; left as it is, the section is empty (found 2026-11-08)
+        self.happy_change()
+        hint = "<!-- The independent reviewer's findings, each marked verified true or false and what was done.\n     Required when code changed; otherwise write `waived by Rhea <date>` with her reason. -->\n"
+        fill_record(self.repo, "0.2.0", "- al-1 pass: ok\n- al-3 pass: ok\n- be-2 pass: ok\n", review=hint)
+        out = self.refuse("Review section is empty")
+        self.assertNotIn("review waived", out or "")
+
     def test_review_not_required_for_doc_only_release(self):
         run(self.repo, "guide", "start", "0.2.0")
         set_version(self.repo, "0.2.0")

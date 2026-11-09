@@ -129,7 +129,7 @@ class Gate:
         self.not_run = [(cid, results[cid][1]) for _, cid, _, _ in required if cid in results and results[cid][0] == "not run"]
         # 8 review
         code_changed = [f for f in files if any(f.startswith(p.rstrip("/") + "/") or f == p for p in cfg["reviewPaths"])]
-        review = c.record_section(body, "Review")
+        review = c.strip_comments(c.record_section(body, "Review"))   # the template's own hint mentions a waiver
         if code_changed:
             if not c.section_filled(review):
                 self.refuse("code changed but the Review section is empty (independent review, or `waived by Rhea <date>`)")

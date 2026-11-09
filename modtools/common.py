@@ -378,11 +378,17 @@ def record_section(body, title):
     return m.group(1) if m else None
 
 
+def strip_comments(text):
+    """The text without its <!-- --> template hints, which can run over several lines."""
+    return re.sub(r"<!--.*?-->", "", text or "", flags=re.S)
+
+
 def section_filled(text):
-    """A section counts as filled when it has a line that is not blank and not a template hint."""
+    """A section counts as filled when it has a line that is not blank and not a template hint. A hint can run over several lines, so comments
+    are removed whole first: a hint's second line once counted as content (and its words "waived by Rhea" as a waiver), found 2026-11-08."""
     if text is None:
         return False
-    for line in text.split("\n"):
+    for line in strip_comments(text).split("\n"):
         s = line.strip()
         if s and not s.startswith("<!--") and not s.startswith("_") and s != "-":
             return True
