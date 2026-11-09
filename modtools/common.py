@@ -675,6 +675,9 @@ Q_RE = re.compile(r"^-\s*\((q-\d+)\)\s*\[since\s+(\d+\.\d+\.\d+)\]\s*(open|asked
 NEXT_RE = re.compile(r"\*\*Next, in (?:her|Rhea['’]s) order:\*\*[ \t]*([^\n]+)")   # one line, by design
 
 
+RECHECK_RE = re.compile(r"^-\s+(\S+)\s+(\d{4}-\d{2}-\d{2}):\s+(.+)$", re.M)
+
+
 class Plan:
     """The module's private plan doc (a local copy pulled with project_read): the build lock,
     the open questions for Rhea, and Next in her order."""
@@ -701,6 +704,17 @@ class Plan:
             self.questions.append({"id": m.group(1), "since": m.group(2), "status": m.group(3).split()[0], "text": m.group(7)})
         m = NEXT_RE.search(self.text)
         self.next = m.group(1).strip() if m else None
+        # Rhea's rule (2026-11-09): recheck everything before saying finished; `guide finish --rechecked` writes it here
+        m = RECHECK_RE.search(plan_section(self.text, "Last recheck") or "")
+        self.recheck = {"version": m.group(1), "date": m.group(2), "text": m.group(3).strip()} if m else None
+
+    def set_recheck(self, version, date, text):
+        line = f"- {version} {date}: {' '.join(text.split())}"
+        if plan_section(self.text, "Last recheck") is None:
+            self.text = self.text.rstrip("\n") + "\n\n## Last recheck\n" + line + "\n"
+        else:
+            self._replace_section("Last recheck", line)
+        self.recheck = {"version": version, "date": date, "text": " ".join(text.split())}
 
     def lock_for(self, mod):
         return next((l for l in self.locks if l[0] == mod), None)

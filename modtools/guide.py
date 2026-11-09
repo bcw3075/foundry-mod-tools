@@ -7,7 +7,9 @@
   guide <file|feature ...>   the decisions, checks, traps and shared items for those features
   guide --diff [base]        the same, for everything changed since base (default: the record's base)
   guide --index              regenerate the feature index in DEVELOPING.md (never edit it by hand)
-  guide finish [--plan <copy>]  what is still unsaved: git, the record, owed lessons, branches, the lock
+  guide finish [--plan <copy>] [--rechecked "<what was rechecked, and what it fixed>"]
+                               what is still unsaved: git, the record, owed lessons, branches, the lock;
+                               refuses until everything was rechecked (Rhea's rule, 2026-11-09)
   guide handoff --plan <copy> --state "<text>"   the handoff, in the fixed layout
   guide unverified [add "<text>"]   the open unverified items, or add one (file and record)
   guide new-feature <name>   create a feature doc from the template
@@ -362,8 +364,22 @@ def finish_state(root, cfg, version=None):
     return issues, list(dict.fromkeys(yellow)), version   # one line per card, however many lessons name it
 
 
-def cmd_finish(root, cfg, plan_path=None, version=None):
+RECHECK_LIST = [
+    "every doc the chat touched, reread after the last change: the change record, the feature docs, DEVELOPING.md",
+    "every project doc that names this module or its version: the plan doc, the history doc, the baseline, `claude/mod-roadmap.md`, `claude/docs-index.md` (Last checked)",
+    "memory notes the work touched still match the live docs (preferences: Keep memory up to date)",
+    "every lesson of the chat filed in its one home, including small traps (a test trap, a module's behaviour, a pane quirk)",
+    "the live server: no test documents, chat cards, sessions or fights left; the world and scene as the handoff will say",
+]
+
+
+def cmd_finish(root, cfg, plan_path=None, version=None, rechecked=None):
     issues, yellow, version = finish_state(root, cfg, version)
+    # Rhea's rule (2026-11-09): when a task is complete, go back through and recheck everything to make sure everything is
+    # updated correctly before saying it's finished. The script can't do the recheck; it refuses until one is recorded.
+    if not rechecked or len(rechecked.split()) < 4:
+        issues.append('recheck not recorded: go back through everything (RECHECK below), fix what is stale, then run '
+                      'finish again with --rechecked "<what was rechecked, and what it fixed>"')
     plan = None
     if cfg.get("planDoc"):
         try:
@@ -378,7 +394,11 @@ def cmd_finish(root, cfg, plan_path=None, version=None):
             issues.append(f"the plan's lock for {mod} belongs to another chat ({held[1]}, {held[2]}): tell Rhea")
         elif held and not issues:
             plan.set_lock(mod, None, None, None)
+        if not issues:
+            plan.set_recheck(version, datetime.date.today().isoformat(), rechecked)
             plan.save()
+            print(f"recheck: recorded in {plan_path} for {version}")
+        if held and held[3] == tok and not issues:
             print(f"lock: cleared in {plan_path}; project_write it back to `{cfg['planDoc']}`")
         elif held:
             print("lock: kept (the build isn't finished: see below)")
@@ -394,6 +414,9 @@ def cmd_finish(root, cfg, plan_path=None, version=None):
         print("  - [ ]", item)
     print("  - [ ] this change record's `Learned` lines really went where they say")
     print("  - [ ] `guide handoff`, in a code block")
+    print("\nRECHECK before saying finished (Rhea's rule, 2026-11-09): go back through all of it, then --rechecked:")
+    for item in RECHECK_LIST:
+        print("  - [ ]", item)
     if yellow:
         print("\nFor Rhea (🟡 lines in the reply):")
         for y in yellow:
@@ -409,6 +432,8 @@ def cmd_handoff(root, cfg, plan_path=None, state=None):
     mod = c.manifest_id(root, cfg) or os.path.basename(root)
     if plan is not None and plan.lock_for(mod):
         issues.append(f"the plan copy still holds the build lock for {mod}: `guide finish --plan` clears it (then project_write the copy back)")
+    if plan is not None and (not plan.recheck or plan.recheck["version"] != version):
+        issues.append(f'no recheck recorded for {version}: `guide finish --plan <copy> --rechecked "<what was rechecked>"` (Rhea\'s rule)')
     if issues:
         raise c.Fail("finish isn't clean; fix these first:\n  - " + "\n  - ".join(issues))
     rel, meta, body = c.load_record(root, cfg, version)
@@ -431,6 +456,7 @@ def cmd_handoff(root, cfg, plan_path=None, state=None):
         else:
             lines.append("Open questions for Rhea: none.")
         lines.append("")
+        lines += [f"Rechecked before finishing ({plan.recheck['date']}): {plan.recheck['text']}", ""]
     items, _ = c.read_unverified(root, cfg)
     if items is not None:
         n = sum(1 for i in items.values() if i["status"] == "open")
@@ -525,12 +551,13 @@ def main(argv=None):
         plan_path = opt(argv, "--plan")
         takeover = opt(argv, "--take-over")
         state = opt(argv, "--state")
+        rechecked = opt(argv, "--rechecked")
         if not argv:
             code = cmd_map(root, cfg, feats)
         elif argv[0] == "start":
             code = cmd_start(root, cfg, argv[1] if len(argv) > 1 else None, " ".join(argv[2:]) or None, plan_path, takeover)
         elif argv[0] == "finish":
-            code = cmd_finish(root, cfg, plan_path, argv[1] if len(argv) > 1 else None)
+            code = cmd_finish(root, cfg, plan_path, argv[1] if len(argv) > 1 else None, rechecked)
         elif argv[0] == "handoff":
             code = cmd_handoff(root, cfg, plan_path, state)
         elif argv[0] == "unverified":

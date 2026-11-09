@@ -35,7 +35,8 @@ python3 ../foundry-mod-tools/guide.py take-cover scripts/turn.mjs       # the sa
 python3 ../foundry-mod-tools/gate.py                                    # refuses, or builds the zip and stamps the tree
 git commit; git push                                                    # the pre-push hook re-checks the stamp on main
 python3 ../foundry-mod-tools/guide.py unverified add "<what isn't proved>" # the running list and the record
-python3 ../foundry-mod-tools/guide.py finish --plan <copy>              # what is still unsaved; owed lessons; branches; clears the lock
+python3 ../foundry-mod-tools/guide.py finish --plan <copy> --rechecked "<what was rechecked, and what it fixed>"
+                                                                     # what is still unsaved; owed lessons; branches; the recheck; clears the lock
 python3 ../foundry-mod-tools/guide.py handoff --plan <copy> --state "<live state>"   # the handoff, fixed layout
 ```
 `guide` alone prints the feature map. `doccheck.py` and `scan.py` run on their own too.
@@ -94,6 +95,14 @@ so deleting it can't switch the rules off.
    `handoff` refuses while it's held. The chat writes the copy back.
 7. **Leftover branches listed.** `finish` notes every remote branch other than main. Rhea (2026-11-09):
    no deletes as they come; they go in one cleanup at the end of the project, so this is a note, not a 🟡 line.
+8. **Recheck before finished (Rhea, 2026-11-09).** Her rule: when a task is complete, go back through and recheck
+   everything to make sure everything is updated correctly before saying it's finished. `finish` refuses (and keeps the
+   lock) until it is run with `--rechecked "<what was rechecked, and what it fixed>"`, and prints its RECHECK list: every
+   doc the chat touched reread, every project doc naming the module or its version (plan, history, baseline, roadmap,
+   docs index), memory notes, every lesson filed (small traps too), and the live server left clean. It writes the
+   answer to the plan doc's `## Last recheck` (made if missing); `handoff` refuses until that line is for the current
+   release, and prints it. A script can't do the recheck; it makes skipping it a visible act. Added after 0.18.0's
+   finish missed a stale roadmap line and two unsaved traps, found only when Rhea asked "No updates needed?".
 Also: a shared check is listed once even when it's shared with several touched features.
 
 ## What the gate requires

@@ -646,7 +646,17 @@ class TestTightening(Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         subprocess.run(["git", "push", "-q", "origin", "main:old-branch"], cwd=self.repo, check=True, env=dict(os.environ, MODTOOLS=TOOLS))
         code, out = run(self.repo, "guide", "finish", "--plan", self.plan)
+        self.assertNotEqual(code, 0)                     # Rhea's rule: no recheck recorded yet
+        self.assertIn("recheck not recorded", out)
+        self.assertIn("RECHECK before saying finished", out)
+        self.assertIn("lock: kept", out)
+        self.assertIn("- lock fixmod", read(self.tmp, "plan.md"))
+        code, out = run(self.repo, "guide", "finish", "--plan", self.plan, "--rechecked", "ok")
+        self.assertNotEqual(code, 0)                     # a word isn't a recheck
+        code, out = run(self.repo, "guide", "finish", "--plan", self.plan, "--rechecked", "reread the record, docs, plan and roadmap; nothing stale")
         self.assertEqual(code, 0, out)
+        self.assertIn("recheck: recorded", out)
+        self.assertRegex(read(self.tmp, "plan.md"), r"## Last recheck\n- 0\.2\.0 \d{4}-\d{2}-\d{2}: reread the record")
         self.assertIn("leftover branches kept for the end-of-project cleanup: old-branch", out)
         self.assertNotIn("🟡", out)          # Rhea 2026-11-09: listed for the end of the project, not asked each time
         self.assertIn("lock: cleared", out)
@@ -665,16 +675,24 @@ class TestTightening(Base):
         self.assertIn("--state", out)
         code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
         self.assertIn("still holds the build lock", out)          # review finding 5
-        code, out = run(self.repo, "guide", "finish", "--plan", self.plan)
+        self.assertIn("no recheck recorded for 0.2.0", out)        # Rhea's rule, 2026-11-09
+        code, out = run(self.repo, "guide", "finish", "--plan", self.plan, "--rechecked", "reread the record, docs, plan and roadmap; nothing stale")
         self.assertEqual(code, 0, out)
         code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "PF2 Test running, paused")
         self.assertEqual(code, 0, out)
         for want in ("```", "fixmod 0.2.0 (Fixture change): gate passed, committed and pushed", "Read memory preferences.md first.", "Load the fixture skills.",
                      "Next, in Rhea's order: the Change button, player reactions.", "(q-1) ASK FIRST Should escaped",
                      "(q-2) A newer question", "Unverified: 1 open in docs/unverified.md", "State: PF2 Test running, paused",
-                     "claude/fixture.md (history)", "claude/fixture-plan.md", "archive the old chat"):
+                     "claude/fixture.md (history)", "claude/fixture-plan.md", "archive the old chat",
+                     "Rechecked before finishing (", "nothing stale"):
             self.assertIn(want, out)
         self.assertNotIn("Old one", out)
+        plan = read(self.tmp, "plan.md")
+        write(self.tmp, "plan.md", re.sub(r"- 0\.2\.0 (\d{4}-\d{2}-\d{2}):", r"- 0.1.0 \1:", plan))
+        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        self.assertNotEqual(code, 0)
+        self.assertIn("no recheck recorded for 0.2.0", out)      # an older release's recheck doesn't count
+        write(self.tmp, "plan.md", plan)
         write(self.repo, "scripts/alpha.mjs", "// dirty\n")
         code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
         self.assertNotEqual(code, 0)
