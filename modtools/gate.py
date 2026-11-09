@@ -20,7 +20,8 @@ Conditions (every one is reported; the first failure refuses the release):
  11 no question in `Asked first` still pending
  12 the running unverified list well formed, each item of the record's Unverified in it, and a
     close-out pass when more than the limit were open at the record's base
- 13 every lesson in Learned naming its home (`→ filed:` and the others)
+ 13 every lesson in Learned naming its home (`→ filed:` and the others); from `lessonScopeFrom` each tagged
+    `[general]` (then its home is a skill card) or `[module]`
 """
 import datetime, io, json, os, re, subprocess, sys, zipfile
 from . import common as c
@@ -227,6 +228,10 @@ class Gate:
         bad = [line for line, kind, _ in c.learned(body) if kind is None]
         if bad:
             self.refuse("lessons must end with their home (`→ filed: <where>`): " + "; ".join(b[:60] for b in bad))
+        if c.needs_lesson_scope(self.cfg, version, meta):
+            probs = c.lesson_scope_problems(body)
+            if probs:
+                self.refuse("lessons: " + " | ".join(probs))
         owed = [line for line, kind, _ in c.learned(body) if kind == "owed"]
         if owed:
             self.lines.append(f"  note {len(owed)} lesson(s) still owed: `guide finish` refuses until they are filed")

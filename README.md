@@ -57,6 +57,13 @@ so deleting it can't switch the rules off.
    or `→ owed: <where>`. Every non-blank line counts (a `*` list can't slip past); a line naming two homes
    counts as the strictest. The gate refuses a line with no home; `finish` refuses while one is owed;
    `start` carries owed and unconfirmed lines from the previous record into the new one.
+   **Lesson scope (Rhea, 2026-11-09):** records with `lessonScope: 1` (the template adds it; set
+   `lessonScopeFrom` in `.modtools.json` so deleting it can't switch it off) tag every lesson `- [general]`
+   (true beyond this module: Foundry, PF2e, the bridge, the tools) or `- [module]`. A general lesson must
+   reach its one home outside the repo: usually the project doc a skill points to (`→ filed: claude/...`),
+   a skill card (`→ card proposed:`) only for what every chat needs, since skills stay lean. The gate and
+   `finish` both refuse a general lesson filed only in the module's own docs. Added after general lessons
+   were twice filed only in a module's docs.
 2. **One running list of unverified items**, `docs/unverified.md` (config `unverified`):
    `- (u-N) [<release>] open: <text>`, closed in place as `verified <date> in <version>: ...` or
    `dropped <date>: ...`. `guide unverified add` writes the item there and `- (u-N) text` in the record;

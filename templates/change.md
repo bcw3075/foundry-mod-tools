@@ -3,6 +3,7 @@ version: {version}
 started: {date}
 base: {base}
 protocol: 2
+lessonScope: 1
 askFirst: [{askfirst}]
 ---
 # {version} — {title} (started {date})
@@ -36,8 +37,11 @@ askFirst: [{askfirst}]
      close older ones in the running list, or write `- none`. -->
 
 ## Learned, and where it was filed
-<!-- Each lesson ends with its home: `→ filed: <where>`, `→ card proposed: <skill>` (Rhea saves it),
-     `→ card saved: <skill>`, or `→ owed: <where>` (finish refuses until it is filed). -->
+<!-- Each lesson starts `- [general]` (true beyond this module: Foundry, PF2e, the bridge, the tools) or
+     `- [module]` (only this module), and ends with its home: `→ filed: <where>`, `→ card proposed: <skill>`
+     (Rhea saves it), `→ card saved: <skill>`, or `→ owed: <where>` (finish refuses until it is filed).
+     A general lesson goes to its one home outside the repo (claude/docs-index.md): usually the project doc a
+     skill points to (`→ filed: claude/...`), a skill card only for what every chat needs. -->
 {learned}
 ## Private notes
 <!-- A pointer only: `see claude/<doc>` for anything that can't be public. Never the content. -->

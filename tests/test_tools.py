@@ -28,7 +28,7 @@ def set_version(repo, v):
     write(repo, "module.json", json.dumps(m, indent=1) + "\n")
 
 
-def fill_record(repo, version, checks, review="- reviewer: no findings (verified: read the diff)\n", title="Alpha returns one again", unverified="- none\n", learned="- nothing new → filed: nowhere needed\n"):
+def fill_record(repo, version, checks, review="- reviewer: no findings (verified: read the diff)\n", title="Alpha returns one again", unverified="- none\n", learned="- [module] nothing new → filed: nowhere needed\n"):
     rel = f"docs/changes/{version}.md"
     text = read(repo, rel).replace("<what this release does>", title)
     def put(sec, body):
@@ -601,7 +601,7 @@ class TestTightening(Base):
         code, out = run(self.repo, "gate", "--check")
         self.assertIn("lessons must end with their home", out)
         fill_record(self.repo, "0.2.0", "- al-1 pass: 1\n- al-3 pass: fine\n- be-2 not run: beta untouched\n",
-                    learned="- a trap → owed: the dev skill section 8\n- a rule → card proposed: foundry-module-dev\n- another → card proposed: foundry-module-dev\n")
+                    learned="- [general] a trap → owed: the dev skill section 8\n- [general] a rule → card proposed: foundry-module-dev\n- [general] another → card proposed: foundry-module-dev\n")
         code, out = run(self.repo, "gate")
         self.assertEqual(code, 0, out)
         self.assertIn("1 lesson(s) still owed", out)
@@ -706,6 +706,45 @@ class TestTightening(Base):
         from modtools import common as cm
         body = "## Learned, and where it was filed\n- x → filed: a → owed: b\n"
         self.assertEqual(cm.learned(body)[0][1], "owed")
+
+    def test_lesson_scope_general_needs_a_card(self):
+        """Rhea, 2026-11-09: general lessons twice landed only in a module's docs. Tagged records refuse that."""
+        self.use_plan()
+        self.start()
+        self.finish_change()
+        checks = "- al-1 pass: 1\n- al-3 pass: fine\n- be-2 not run: beta untouched\n"
+        rel = "docs/changes/0.2.0.md"
+        self.assertIn("lessonScope: 1", read(self.repo, rel))       # the template switches it on
+        fill_record(self.repo, "0.2.0", checks, learned="- a Foundry trap → filed: docs/features/alpha.md\n")
+        code, out = run(self.repo, "gate", "--check")
+        self.assertNotEqual(code, 0)
+        self.assertIn("not tagged `[general]` or `[module]`", out)
+        fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md\n")
+        code, out = run(self.repo, "gate", "--check")
+        self.assertNotEqual(code, 0)
+        self.assertIn("general lesson filed only in this module's docs", out)
+        fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md, claude/foundry-op-recipes.md\n")
+        code, out = run(self.repo, "gate", "--check")
+        self.assertNotIn("lessons:", out)
+        fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md → card proposed: foundry-module-dev\n- [module] a module trap → filed: docs/features/alpha.md\n")
+        code, out = run(self.repo, "gate", "--check")
+        self.assertNotIn("lessons:", out)
+        sys.path.insert(0, TOOLS)
+        from modtools import common as cm
+        self.assertEqual(cm.lesson_scope_problems("## Learned, and where it was filed\n- [General] x → card saved: s\n- [module] y → owed: z\n"), [])
+
+    def test_lesson_scope_cannot_be_switched_off_by_deleting_the_line(self):
+        self.use_plan()
+        cfg = json.loads(read(self.repo, ".modtools.json")); cfg["lessonScopeFrom"] = "0.2.0"
+        write(self.repo, ".modtools.json", json.dumps(cfg, indent=1) + "\n")
+        git(self.repo, "add", "-A"); git(self.repo, "commit", "-q", "-m", "cutoff")
+        self.start()
+        self.finish_change()
+        rel = "docs/changes/0.2.0.md"
+        write(self.repo, rel, read(self.repo, rel).replace("lessonScope: 1\n", ""))
+        fill_record(self.repo, "0.2.0", "- al-1 pass: 1\n- al-3 pass: fine\n- be-2 not run: beta untouched\n", learned="- untagged → filed: x\n")
+        code, out = run(self.repo, "gate", "--check")
+        self.assertIn("not tagged", out)
 
     def test_review_protocol_line_cannot_be_deleted(self):
         self.use_plan()

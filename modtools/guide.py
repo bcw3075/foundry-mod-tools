@@ -336,6 +336,8 @@ def finish_state(root, cfg, version=None):
             issues.append(f"{rel}: the title is still the template's")
         if not c.is_protocol2(meta) and c.needs_protocol2(cfg, version):
             issues.append(f"{rel} lacks `protocol: 2` in its frontmatter (required from {cfg['protocol2From']})")
+        if c.is_protocol2(meta) and c.needs_lesson_scope(cfg, version, meta):
+            issues += c.lesson_scope_problems(body)
         if c.is_protocol2(meta):
             for line, kind, home in c.learned(body):
                 if kind is None:

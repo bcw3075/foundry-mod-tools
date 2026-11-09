@@ -573,6 +573,38 @@ def learned(body):
     return out
 
 
+SCOPE_RE = re.compile(r"^-\s*\[(general|module)\]", re.I)
+
+
+def needs_lesson_scope(cfg, version, meta):
+    """Records from `lessonScopeFrom` on (or with `lessonScope: 1` in the frontmatter) tag every lesson
+    `[general]` or `[module]` (Rhea, 2026-11-09, after general lessons were twice filed only in a module's docs)."""
+    if str(meta.get("lessonScope", "")).strip() == "1":
+        return True
+    start = cfg.get("lessonScopeFrom")
+    return bool(start and version and VERSION_RE.match(version) and vkey(version) >= vkey(start))
+
+
+def lesson_scope_problems(body):
+    """Each lesson starts `- [general]` (true beyond this module: Foundry, PF2e, the bridge, the tools) or
+    `- [module]` (only this module: any home). A general lesson must reach a home every chat can find: a skill
+    card (`→ card proposed:` / `→ card saved:`) or a project doc (`→ filed: claude/...`), whichever is that
+    fact's one home (claude/docs-index.md); a module's own repo docs alone aren't enough. Skills stay lean:
+    most general lessons belong in the project doc a skill points to, not the skill itself."""
+    out = []
+    for line, kind, home in learned(body):
+        m = SCOPE_RE.match(line)
+        if not m:
+            out.append(f"lesson not tagged `[general]` or `[module]`: {line[:90]}")
+            continue
+        if m.group(1).lower() != "general" or kind in (None, "owed"):
+            continue
+        homes = [(k.lower(), h.strip()) for k, h in LEARN_RE.findall(line)]
+        if not any(k in ("card proposed", "card saved") or (k == "filed" and "claude/" in h) for k, h in homes):
+            out.append(f"general lesson filed only in this module's docs: file it in its one home too (a project doc `→ filed: claude/...`, or a skill card `→ card proposed: <skill>`): {line[:90]}")
+    return out
+
+
 UV_LINE = re.compile(r"^-\s*\((u-\d+)\)")
 UV_RE = re.compile(r"^-\s*\((u-\d+)\)\s*\[(\d+\.\d+\.\d+)\]\s*(open|verified\s+(\S+)\s+in\s+(\d+\.\d+\.\d+)|dropped\s+(\S+))\s*:\s*(\S.*)$")
 
