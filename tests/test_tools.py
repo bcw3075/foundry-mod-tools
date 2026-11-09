@@ -97,6 +97,16 @@ class TestGuide(Base):
         self.assertIn("UNOWNED", out)
         self.assertIn("stray", out)
 
+    def test_removed_function_goes_to_its_base_owner(self):
+        # 2026-11-09: a function removed (or renamed) can't be owned by any doc now; the feature that owned it at the base is touched
+        run(self.repo, "guide", "start", "0.2.0")
+        write(self.repo, "scripts/big.mjs", fixture.BIG.replace("export const bigC = () => 'c';\n", ""))
+        write(self.repo, "docs/features/gamma.md", read(self.repo, "docs/features/gamma.md").replace("functions: [bigC, BigWindow]", "functions: [BigWindow]"))
+        code, out = run(self.repo, "guide", "--diff")
+        self.assertEqual(code, 0, out)
+        self.assertNotIn("UNOWNED", out)
+        self.assertIn("Features touched: gamma", out)
+
     def test_unknown_name_is_said(self):
         code, out = run(self.repo, "guide", "nope")
         self.assertIn("UNKNOWN", out)

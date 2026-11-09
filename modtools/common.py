@@ -347,12 +347,40 @@ def map_changes_with_functions(root, cfg, own, base):
     for rel in files:
         if rel in set(cfg["functionOwned"]):
             for name in changed_functions(root, base, rel):
-                fs = own.features_for_function(rel, name)
+                fs = own.features_for_function(rel, name) or base_function_owners(root, cfg, base, rel, name)
                 if fs:
                     touched.update(fs)
                 else:
                     unowned.append(f"{rel} `{name}`")
     return files, touched, unowned
+
+
+def base_function_owners(root, cfg, base, rel, name):
+    """The features that owned a function at the base, for one that no longer exists (removed or renamed): its doc
+    can't own it any more (doccheck refuses a function that isn't there), yet removing it changes that feature
+    (found 2026-11-09, Encounter Builder 0.18.0, when `hostile` became `runnable`). Only for a function gone from
+    the working tree; one that still exists must be owned now."""
+    try:
+        if name in _func_bodies(read(root, rel)):
+            return []
+    except FileNotFoundError:
+        pass
+    key, out = function_key(rel, name), []
+    try:
+        names = git(root, "ls-tree", "--name-only", base, cfg["features"] + "/").split()
+    except Fail:
+        return []
+    for path in names:
+        if not path.endswith(".md"):
+            continue
+        try:
+            meta, body = parse_frontmatter(git(root, "show", f"{base}:{path}"))
+        except Fail:
+            continue
+        fns = meta.get("functions") or []
+        if key in fns or name in fns:   # a bare name meant the file it was in at the base, and it was in this one
+            out.append(meta.get("feature") or os.path.basename(path)[:-3])
+    return out
 
 
 def shared_required(feats, touched):
