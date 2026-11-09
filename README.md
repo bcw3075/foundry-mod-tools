@@ -37,6 +37,14 @@ python3 ../foundry-mod-tools/guide.py finish                            # what i
 ```
 `guide` alone prints the feature map. `doccheck.py` and `scan.py` run on their own too.
 
+**A release in two gates (the live checks need the code installed):** record each live check
+`not run: pending live test (test build)` and start the independent review at once, with a Review
+line `- pending (test build): …`; gate, push and install the test build; test; then write the real
+results and replace the pending line with the review's findings, each verified against the code;
+gate and push again. A second test build under the same version is fine: poll raw GitHub for the
+new zip, not the version. If a gate line ever claims something nobody did, stop and fix the tool,
+with a test that fails on the old code.
+
 ## What the gate requires
 1. A change record for the manifest's version, and the version bumped since the record's base.
 2. `doccheck` clean: every backticked name in the docs exists in the repo; every code file is owned
@@ -49,7 +57,8 @@ python3 ../foundry-mod-tools/guide.py finish                            # what i
    `- doc-unchanged <feature>: <reason>` under Features touched.
 7. Every check id of every touched feature, plus every `shared:<touched>` item in other features,
    is recorded `pass` or `not run: <reason>`; `unit` items are covered by step 4; a `fail` refuses.
-8. The Review section is filled when code changed (or `waived by Rhea <date>: <reason>`).
+8. The Review section is filled when code changed (or `waived by Rhea <date>: <reason>`). Template
+   hints (`<!-- -->`, even over several lines) never count as content or as a waiver.
 9. The record's title is no longer the template's.
 
 Then it builds the zip from the tree (deterministic, includes only the configured folders, never
