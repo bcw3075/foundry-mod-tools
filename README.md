@@ -45,7 +45,10 @@ python3 ../foundry-mod-tools/guide.py handoff --plan <copy> --state "<live state
 line `- pending (test build): …`; gate, push and install the test build; test; then write the real
 results and replace the pending line with the review's findings, each verified against the code;
 gate and push again. A second test build under the same version is fine: poll raw GitHub for the
-new zip, not the version. If a gate line ever claims something nobody did, stop and fix the tool,
+new zip, not the version, on the plain URL Foundry's install fetches (2026-11-09: a cache-busted `?t=`
+URL served the new zip while the plain one still served the old, and the first install got the old
+build); then confirm the install by a changed file's text under `/modules/<id>/`, reinstall if it is
+old, and reload the Bridge's page with its cache cleared before testing. If a gate line ever claims something nobody did, stop and fix the tool,
 with a test that fails on the old code.
 
 ## The tightening (protocol 2, agreed with Rhea 2026-11-08)
