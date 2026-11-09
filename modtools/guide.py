@@ -354,9 +354,9 @@ def finish_state(root, cfg, version=None):
     branches = c.remote_branches(root)
     if branches is None:
         issues.append("couldn't list the remote branches (offline?): leftover branches can't be checked")
-    for b in branches or []:
-        if b != cfg["mainBranch"]:
-            yellow.append(f"Delete the leftover branch `{b}` on GitHub (Claude can't delete branches)")
+    leftover = [b for b in branches or [] if b != cfg["mainBranch"]]
+    if leftover:   # Rhea 2026-11-09: no deletes as they come; one cleanup at the end of the project
+        print(f"note: leftover branches kept for the end-of-project cleanup: {', '.join(leftover)}")
     return issues, list(dict.fromkeys(yellow)), version   # one line per card, however many lessons name it
 
 

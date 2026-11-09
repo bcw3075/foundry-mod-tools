@@ -637,7 +637,8 @@ class TestTightening(Base):
         subprocess.run(["git", "push", "-q", "origin", "main:old-branch"], cwd=self.repo, check=True, env=dict(os.environ, MODTOOLS=TOOLS))
         code, out = run(self.repo, "guide", "finish", "--plan", self.plan)
         self.assertEqual(code, 0, out)
-        self.assertIn("🟡 Delete the leftover branch `old-branch`", out)
+        self.assertIn("leftover branches kept for the end-of-project cleanup: old-branch", out)
+        self.assertNotIn("🟡", out)          # Rhea 2026-11-09: listed for the end of the project, not asked each time
         self.assertIn("lock: cleared", out)
         self.assertNotIn("- lock fixmod", read(self.tmp, "plan.md"))
 

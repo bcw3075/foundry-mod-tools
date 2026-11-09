@@ -82,7 +82,8 @@ so deleting it can't switch the rules off.
    clone's git config) and refuses when another chat's token is there, unless Rhea agreed
    (`--take-over "<her OK>"`, kept on the lock line); `finish` clears it when nothing is left, and
    `handoff` refuses while it's held. The chat writes the copy back.
-7. **Leftover branches flagged.** `finish` prints a 🟡 line for every remote branch other than main.
+7. **Leftover branches listed.** `finish` notes every remote branch other than main. Rhea (2026-11-09):
+   no deletes as they come; they go in one cleanup at the end of the project, so this is a note, not a 🟡 line.
 Also: a shared check is listed once even when it's shared with several touched features.
 
 ## What the gate requires
