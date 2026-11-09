@@ -357,7 +357,7 @@ def finish_state(root, cfg, version=None):
     for b in branches or []:
         if b != cfg["mainBranch"]:
             yellow.append(f"Delete the leftover branch `{b}` on GitHub (Claude can't delete branches)")
-    return issues, yellow, version
+    return issues, list(dict.fromkeys(yellow)), version   # one line per card, however many lessons name it
 
 
 def cmd_finish(root, cfg, plan_path=None, version=None):

@@ -601,7 +601,7 @@ class TestTightening(Base):
         code, out = run(self.repo, "gate", "--check")
         self.assertIn("lessons must end with their home", out)
         fill_record(self.repo, "0.2.0", "- al-1 pass: 1\n- al-3 pass: fine\n- be-2 not run: beta untouched\n",
-                    learned="- a trap → owed: the dev skill section 8\n- a rule → card proposed: foundry-module-dev\n")
+                    learned="- a trap → owed: the dev skill section 8\n- a rule → card proposed: foundry-module-dev\n- another → card proposed: foundry-module-dev\n")
         code, out = run(self.repo, "gate")
         self.assertEqual(code, 0, out)
         self.assertIn("1 lesson(s) still owed", out)
@@ -610,7 +610,7 @@ class TestTightening(Base):
         code, out = run(self.repo, "guide", "finish", "--plan", self.plan)
         self.assertNotEqual(code, 0)
         self.assertIn("lesson owed, file it now", out)
-        self.assertIn("🟡 Save the skill card for foundry-module-dev", out)
+        self.assertEqual(out.count("🟡 Save the skill card for foundry-module-dev"), 1)
         self.assertIn("lock: kept", out)
 
     def test_owed_lesson_is_carried_into_the_next_record(self):
