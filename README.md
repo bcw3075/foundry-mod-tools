@@ -27,13 +27,16 @@ read `.modtools.json`, the feature docs' frontmatter and git, nothing else.
 
 ## Every change
 ```
-python3 ../foundry-mod-tools/guide.py start 0.11.0 "Monsters fleeing"   # setup checks, hook on, record created
+python3 ../foundry-mod-tools/guide.py start 0.11.0 "Monsters fleeing" --plan /home/claude/scratch/plan.md
+                                       # the lock, questions to ask first, page checks, setup checks, hook on, record
 python3 ../foundry-mod-tools/guide.py --diff                            # what applies: docs, decisions, checks, traps, shared items
 python3 ../foundry-mod-tools/guide.py take-cover scripts/turn.mjs       # the same for named features or files
 ...build; fill the record as decisions and findings come; bump the version...
 python3 ../foundry-mod-tools/gate.py                                    # refuses, or builds the zip and stamps the tree
 git commit; git push                                                    # the pre-push hook re-checks the stamp on main
-python3 ../foundry-mod-tools/guide.py finish                            # what is still unsaved, in and out of the repo
+python3 ../foundry-mod-tools/guide.py unverified add "<what isn't proved>" # the running list and the record
+python3 ../foundry-mod-tools/guide.py finish --plan <copy>              # what is still unsaved; owed lessons; branches; clears the lock
+python3 ../foundry-mod-tools/guide.py handoff --plan <copy> --state "<live state>"   # the handoff, fixed layout
 ```
 `guide` alone prints the feature map. `doccheck.py` and `scan.py` run on their own too.
 
@@ -44,6 +47,43 @@ results and replace the pending line with the review's findings, each verified a
 gate and push again. A second test build under the same version is fine: poll raw GitHub for the
 new zip, not the version. If a gate line ever claims something nobody did, stop and fix the tool,
 with a test that fails on the old code.
+
+## The tightening (protocol 2, agreed with Rhea 2026-11-08)
+Records made from the template since then carry `protocol: 2` and get these rules. Set `protocol2From`
+in `.modtools.json` to the first version under them: the gate then refuses a record without the line,
+so deleting it can't switch the rules off.
+1. **Owed lessons can't wait.** Every line under Learned ends with its home: `→ filed: <where>`,
+   `→ card proposed: <skill>` (Rhea saves it; `finish` prints a 🟡 line until it reads `→ card saved:`),
+   or `→ owed: <where>`. Every non-blank line counts (a `*` list can't slip past); a line naming two homes
+   counts as the strictest. The gate refuses a line with no home; `finish` refuses while one is owed;
+   `start` carries owed and unconfirmed lines from the previous record into the new one.
+2. **One running list of unverified items**, `docs/unverified.md` (config `unverified`):
+   `- (u-N) [<release>] open: <text>`, closed in place as `verified <date> in <version>: ...` or
+   `dropped <date>: ...`. `guide unverified add` writes the item there and `- (u-N) text` in the record;
+   the gate refuses a record item missing from the list, a malformed line, an item deleted instead of
+   closed in place, and, when more than
+   `unverifiedLimit` (8) were open at the record's base, a release that closes fewer than
+   `closeOutAtLeast` (3, or down to the limit).
+3. **Recurring traps become page checks** (config `pageChecks`: `id`, `why`, `script`, `pages`). `start`
+   prints each script and writes `- <id> not run: pending` under Setup; the gate refuses until it says
+   `done: <what was seen>` (or `not run: <real reason>`). Rule: a trap seen twice becomes one.
+4. **Handoffs written by the script.** `handoff` refuses until `finish` is clean, needs `--state`
+   (the live state no script can see), and prints the fixed layout: what was released, read and load,
+   Next in Rhea's order (the plan's `**Next, in Rhea's order:**` line), open questions, the unverified
+   count, state, where things are (config `handoff.where`), the archive reminder; 🟡 lines after it.
+5. **Questions for Rhea don't sit.** They live in the plan doc's `## Open questions` as
+   `- (q-N) [since <version>] open|asked <date>|answered <date>|dropped <date>: <text>`. One carried
+   through two handoffs (two change records at or after `since`) is printed by `start` under ASK RHEA
+   FIRST, listed in the record's frontmatter `askFirst`, and written `- q-N pending` under Asked first;
+   the gate refuses while one is pending or has no line. `asked` (Rhea: later) still counts toward overdue.
+6. **One build chat at a time.** With `planDoc` set, `start` and `finish` need `--plan <local copy>`
+   (pulled with project_read; the private doc never goes in the repo). `start` writes
+   `- lock <mod> <version> started <time> token <t>` under `## Build lock` (the token lives in the
+   clone's git config) and refuses when another chat's token is there, unless Rhea agreed
+   (`--take-over "<her OK>"`, kept on the lock line); `finish` clears it when nothing is left, and
+   `handoff` refuses while it's held. The chat writes the copy back.
+7. **Leftover branches flagged.** `finish` prints a 🟡 line for every remote branch other than main.
+Also: a shared check is listed once even when it's shared with several touched features.
 
 ## What the gate requires
 1. A change record for the manifest's version, and the version bumped since the record's base.
@@ -69,8 +109,12 @@ from the stamp, or whose committed zip disagrees with the manifest.
 ## Honest limits
 A script can't prove a live test was run or a player view was looked at: the record asks for what
 was seen, and a reviewer reads it against the chat. `git push --no-verify` and a hand-built zip
-still work; they are deliberate, visible acts, and the skills forbid them.
+still work; they are deliberate, visible acts, and the skills forbid them. The build lock's token lives in
+the clone's git config: two chats sharing one clone would share it (each chat has its own workspace, so
+this doesn't happen today). The lock and the questions live in a private doc the scripts only see as the
+copy passed with `--plan`; writing it back is the chat's step.
 
 ## Tests
 `python3 -m unittest discover -s tests` builds a fixture repo with a bare remote and checks guide's
-mapping, each gate refusal and the pass, the orphan check, the scan and the hook.
+mapping, each gate refusal and the pass, the orphan check, the scan, the hook, and the seven
+protocol-2 rules (TestTightening).

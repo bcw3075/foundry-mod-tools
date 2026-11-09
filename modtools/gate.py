@@ -15,6 +15,12 @@ Conditions (every one is reported; the first failure refuses the release):
     pass / not run (with a reason); `unit` items are covered by step 4; a `fail` refuses
   8 the Review section is filled when code changed (or `waived by Rhea <date>`)
   9 the record's title is no longer the template's
+ Records made since the tightening (frontmatter `protocol: 2`) also need:
+ 10 every page check recorded under Setup (done, or not run with a reason)
+ 11 no question in `Asked first` still pending
+ 12 the running unverified list well formed, each item of the record's Unverified in it, and a
+    close-out pass when more than the limit were open at the record's base
+ 13 every lesson in Learned naming its home (`→ filed:` and the others)
 """
 import datetime, io, json, os, re, subprocess, sys, zipfile
 from . import common as c
@@ -126,7 +132,7 @@ class Gate:
         if bad_notrun:
             self.refuse(f"`not run` needs a reason: {', '.join(bad_notrun)}")
         self.ok(f"checks: {counts['pass']} pass, {counts['unit']} by unit tests, {counts['not run']} not run (with reasons), {len(required)} required")
-        self.not_run = [(cid, results[cid][1]) for _, cid, _, _ in required if cid in results and results[cid][0] == "not run"]
+        self.not_run = list(dict.fromkeys((cid, results[cid][1]) for _, cid, _, _ in required if cid in results and results[cid][0] == "not run"))
         # 8 review
         code_changed = [f for f in files if any(f.startswith(p.rstrip("/") + "/") or f == p for p in cfg["reviewPaths"])]
         review = c.strip_comments(c.record_section(body, "Review"))   # the template's own hint mentions a waiver
@@ -144,7 +150,87 @@ class Gate:
             self.refuse(f"{rel}: the title is still the template's")
         self.unverified = c.record_section(body, "Unverified") or ""
         self.version, self.files, self.touched = version, files, touched
+        if c.is_protocol2(meta):
+            self.protocol2(rel, base, body, version, meta)
+        elif c.needs_protocol2(cfg, version):
+            self.refuse(f"{rel} lacks `protocol: 2` in its frontmatter (required from {cfg['protocol2From']}); the rules can't be switched off by deleting it")
+        else:
+            self.lines.append("  note protocol 1 record: rules 10 to 13 not applied")
         return version
+
+    def protocol2(self, rel, base, body, version, meta):
+        root, cfg = self.root, self.cfg
+        # 10 page checks
+        setup = {}
+        for line in c.bullets(c.record_section(body, "Setup")):
+            m = re.match(r"^-\s*([\w.-]+)\s+(done|not run)\b\s*:?\s*(.*)$", line, re.I)
+            if m:
+                setup[m.group(1)] = (m.group(2).lower(), m.group(3).strip())
+        for pc in cfg.get("pageChecks") or []:
+            res = setup.get(pc["id"])
+            if not res:
+                self.refuse(f"page check `{pc['id']}` is not recorded under Setup (`- {pc['id']} done: what was seen`)")
+            if res[0] == "not run" and (not res[1] or res[1].lower() == "pending"):
+                self.refuse(f"page check `{pc['id']}` is still pending: run it on every page this chat uses ({pc['script']})")
+            if res[0] == "done" and not res[1]:
+                self.refuse(f"page check `{pc['id']}`: say what was seen")
+        self.ok(f"page checks recorded ({len(cfg.get('pageChecks') or [])})")
+        # 11 questions asked first
+        asked = {}
+        for l in c.bullets(c.record_section(body, "Asked first")):
+            m = re.match(r"^-\s*(q-\d+)\s+(pending\s*$|asked\b|answered\b|dropped\b)", l)
+            if m:
+                asked[m.group(1)] = m.group(2).strip()
+        due = meta.get("askFirst") or []
+        due = due if isinstance(due, list) else [due]
+        for q in due:
+            if q not in asked:
+                self.refuse(f"{q} was due to be asked first (frontmatter askFirst) but has no line under Asked first")
+        pend = [q for q, s in asked.items() if s == "pending"]
+        if pend:
+            self.refuse("questions to ask Rhea first are still pending: " + ", ".join(pend))
+        self.ok(f"questions asked first: {len(due)}")
+        # 12 unverified
+        items, probs = c.read_unverified(root, cfg)
+        if items is None:
+            self.refuse(f"{cfg['unverified']} is missing: `guide unverified add \"<text>\"` makes it")
+        if probs:
+            self.lines.append("  FAIL unverified list:\n" + "\n".join(f"         - {p}" for p in probs))
+            raise c.Fail(f"{cfg['unverified']} has {len(probs)} malformed line(s)")
+        lines = c.bullets(self.unverified)
+        if not lines:
+            self.refuse("the record's Unverified section is empty (`guide unverified add`, or `- none`)")
+        for l in lines:
+            if re.match(r"^-\s*none\b", l, re.I):
+                continue
+            m = re.match(r"^-\s*\((u-\d+)\)", l)
+            if not m:
+                self.refuse(f"an Unverified line isn't in the running list (add it with `guide unverified add`): {l[:80]}")
+            if m.group(1) not in items:
+                self.refuse(f"{m.group(1)} is in the record but not in {cfg['unverified']}")
+        open_now = {k for k, i in items.items() if i["status"] == "open"}
+        old, _ = c.read_unverified(root, cfg, base)
+        gone = sorted(set(old or {}) - set(items))
+        if gone:
+            self.refuse(f"item(s) removed from {cfg['unverified']}: {', '.join(gone)}; close them in place (verified ... or dropped ... with a reason)")
+        open_then = {k for k, i in (old or {}).items() if i["status"] == "open"}
+        lim = cfg["unverifiedLimit"]
+        closed = {k for k in open_then if items[k]["status"] in ("verified", "dropped")}
+        if len(open_then) > lim:
+            need = min(cfg["closeOutAtLeast"], len(open_then) - lim)
+            if len(closed) < need:
+                self.refuse(f"close-out pass needed: {len(open_then)} unverified items were open at this release's start (limit {lim}); "
+                            f"close at least {need} in {cfg['unverified']} (closed so far: {len(closed)})")
+        self.ok(f"unverified: {len(open_now)} open (limit {lim}); {len(closed)} closed in this release")
+        self.open_unverified = len(open_now)
+        # 13 lessons
+        bad = [line for line, kind, _ in c.learned(body) if kind is None]
+        if bad:
+            self.refuse("lessons must end with their home (`→ filed: <where>`): " + "; ".join(b[:60] for b in bad))
+        owed = [line for line, kind, _ in c.learned(body) if kind == "owed"]
+        if owed:
+            self.lines.append(f"  note {len(owed)} lesson(s) still owed: `guide finish` refuses until they are filed")
+        self.ok("every lesson names its home")
 
     def record_listed_features(self, body, feats):
         out = set()
@@ -217,8 +303,11 @@ class Gate:
             out.append(f"  version {self.version}; features touched: {', '.join(sorted(self.touched)) or 'none'}")
             if self.not_run:
                 out.append("  not run: " + "; ".join(f"{cid} ({n})" for cid, n in self.not_run))
-            uv = [l.strip() for l in self.unverified.split("\n") if l.strip() and not l.strip().startswith("<!--")]
-            out.append("  unverified: " + ("; ".join(uv) if uv else "(record says nothing)"))
+            if getattr(self, "open_unverified", None) is not None:
+                out.append(f"  unverified: {self.open_unverified} open in {self.cfg['unverified']} (this release's in the record)")
+            else:
+                uv = [l.strip() for l in c.strip_comments(self.unverified).split("\n") if l.strip()]
+                out.append("  unverified: " + ("; ".join(uv) if uv else "(record says nothing)"))
         return "\n".join(out)
 
 

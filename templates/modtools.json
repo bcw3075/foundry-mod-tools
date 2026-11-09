@@ -14,6 +14,14 @@
     {"path": "../lythara-survey-sheet", "hint": "clone the Survey Sheet repo beside this one"},
     {"path": "tools/test/data/spots.json", "hint": "copy the test data from the private project docs"}
   ],
+  "unverified": "docs/unverified.md",
+  "unverifiedLimit": 8,
+  "closeOutAtLeast": 3,
+  "planDoc": "claude/<module>-plan.md",
+  "pageChecks": [
+    {"id": "calendar-off", "why": "Simple Calendar's window comes back on each page", "script": "tools/setup/calendar-off.js", "pages": "the Bridge's page, each hidden session, the browser pane"}
+  ],
+  "handoff": {"load": "Load foundry-module-dev, foundry-test-process and the module's skill.", "where": ["claude/<module>.md (history)"]},
   "finishList": [
     "project doc for this module (what changed, what was verified)",
     "the module's skill card, if the skill text changed",

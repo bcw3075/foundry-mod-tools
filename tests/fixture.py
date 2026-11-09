@@ -131,6 +131,7 @@ def build(base_dir):
     for name, text in FEATURES.items():
         write(repo, f"docs/features/{name}.md", text)
     write(repo, "docs/DEVELOPING.md", "# Fixture\n\n## Layout\n`scripts/alpha.mjs` and `scripts/big.mjs`.\n\n## Feature index\n\n<!-- feature-index:start -->\n<!-- feature-index:end -->\n")
+    write(repo, "docs/unverified.md", "# Unverified items\n\n- (u-1) [0.1.0] open: the first item\n")
     write(repo, "tools/test/unit.py", "import sys\nsys.exit(0)\n")
     write(repo, "tools/test/data/.keep", "")
     os.makedirs(os.path.join(repo, "tools/githooks"))

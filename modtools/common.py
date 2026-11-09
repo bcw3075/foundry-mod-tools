@@ -40,6 +40,13 @@ DEFAULTS = {
     "reviewPaths": [],                      # a change under these needs the review section
     "extraDocs": [],                        # other docs doccheck reads names from
     "externalNames": "docs/external-names.txt",   # names from other systems' code the docs may quote (one per line)
+    "unverified": "docs/unverified.md",     # the one running list of unverified items
+    "unverifiedLimit": 8,                   # above this many open at a release's start, it must close some
+    "closeOutAtLeast": 3,                   # how many a close-out pass closes (or down to the limit)
+    "protocol2From": None,                  # records from this version on must say `protocol: 2`
+    "planDoc": None,                        # the private project doc holding the lock, Next and the questions
+    "pageChecks": [],                       # recurring traps made into scripts run on every page each chat
+    "handoff": {"load": "", "where": []},   # fixed lines for `guide handoff`
 }
 
 
@@ -349,13 +356,18 @@ def map_changes_with_functions(root, cfg, own, base):
 
 
 def shared_required(feats, touched):
-    """Check items in other features tagged shared:<touched feature>."""
-    req = []
+    """Check items in other features tagged shared:<touched feature>. Each item once, even when it is
+    shared with several touched features (0.16.0's gate listed sd-1 to sd-11 twice, 2026-11-09)."""
+    req, seen = [], set()
     for f in feats.values():
+        if f.name in touched:
+            continue
         for cid, tags, text in f.checks:
-            for t in tags:
-                if t.startswith("shared:") and t[7:] in touched and f.name not in touched:
-                    req.append((f.name, cid, tags, text))
+            if (f.name, cid) in seen:
+                continue
+            if any(t.startswith("shared:") and t[7:] in touched for t in tags):
+                seen.add((f.name, cid))
+                req.append((f.name, cid, tags, text))
     return req
 
 
@@ -490,7 +502,7 @@ def template(tpl, **fields):
     """A template with its {placeholders} filled; other braces (check tags) are left alone."""
     with open(os.path.join(tools_dir(), "templates", tpl), encoding="utf-8") as f:
         text = f.read()
-    for k, v in fields.items():
+    for k, v in sorted(fields.items(), key=lambda kv: kv[0] == "title"):   # the title last: its text is Claude's
         text = text.replace("{" + k + "}", str(v))
     return text
 
@@ -502,3 +514,178 @@ def say(*parts):
 def die(msg, code=2):
     print(f"REFUSED: {msg}" if code == 2 else msg, file=sys.stderr)
     sys.exit(code)
+
+
+# ---------- protocol 2: versions, lessons, unverified items, the plan doc ----------
+
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def vkey(v):
+    return tuple(int(x) for x in v.split("."))
+
+
+def record_versions(root, cfg):
+    folder = os.path.join(root, cfg["changes"])
+    if not os.path.isdir(folder):
+        return []
+    vs = [fn[:-3] for fn in os.listdir(folder) if fn.endswith(".md") and VERSION_RE.match(fn[:-3])]
+    return sorted(vs, key=vkey)
+
+
+def is_protocol2(meta):
+    return str(meta.get("protocol", "")).strip() == "2"
+
+
+def needs_protocol2(cfg, version):
+    """Records from `protocol2From` on must carry `protocol: 2`: deleting the line can't switch the rules off."""
+    start = cfg.get("protocol2From")
+    return bool(start and version and VERSION_RE.match(version) and vkey(version) >= vkey(start))
+
+
+def bullets(text):
+    """The `- ` lines of a section, template hints removed."""
+    return [l.strip() for l in strip_comments(text or "").split("\n") if l.strip().startswith("- ")]
+
+
+LEARN_RE = re.compile(r"(?:→|->)\s*(filed|owed|card proposed|card saved)\s*:\s*((?:(?!→|->).)+?)\s*(?=→|->|$)", re.I)
+
+
+def learned(body):
+    """[(line, kind, home)] from the Learned section; kind is None when the line names no home, or when
+    the line isn't a `- ` bullet (every non-blank line is a lesson, so a `*` list can't slip past).
+    A line naming several homes counts as the strictest: owed, then card proposed."""
+    out = []
+    for raw in strip_comments(record_section(body, "Learned, and where it was filed") or "").split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        if not line.startswith("- "):
+            out.append((line, None, None))
+            continue
+        hits = [(m.group(1).lower(), m.group(2)) for m in LEARN_RE.finditer(line)]
+        if not hits:
+            out.append((line, None, None))
+            continue
+        order = ["owed", "card proposed", "card saved", "filed"]
+        kind, home = min(hits, key=lambda h: order.index(h[0]))
+        out.append((line, kind, home))
+    return out
+
+
+UV_LINE = re.compile(r"^-\s*\((u-\d+)\)")
+UV_RE = re.compile(r"^-\s*\((u-\d+)\)\s*\[(\d+\.\d+\.\d+)\]\s*(open|verified\s+(\S+)\s+in\s+(\d+\.\d+\.\d+)|dropped\s+(\S+))\s*:\s*(\S.*)$")
+
+
+def parse_unverified(text):
+    """(items, problems): items maps id -> {release, status, text}; status is open, verified or dropped."""
+    items, probs = {}, []
+    for line in (text or "").split("\n"):
+        s = line.strip()
+        if not UV_LINE.match(s):
+            continue
+        m = UV_RE.match(s)
+        if not m:
+            probs.append(f"unverified line not in the form `- (u-N) [<release>] open|verified <date> in <version>|dropped <date>: <text>`: {s[:90]}")
+            continue
+        uid = m.group(1)
+        if uid in items:
+            probs.append(f"unverified id {uid} is used twice")
+        items[uid] = {"release": m.group(2), "status": m.group(3).split()[0], "text": m.group(7)}
+    return items, probs
+
+
+def read_unverified(root, cfg, ref=None):
+    rel = cfg["unverified"]
+    try:
+        text = git(root, "show", f"{ref}:{rel}") if ref else read(root, rel)
+    except (Fail, FileNotFoundError):
+        return None, []
+    return parse_unverified(text)
+
+
+def plan_section(text, title):
+    m = re.search(rf"^##\s+{re.escape(title)}\b[^\n]*$(.*?)(?=^##\s|\Z)", text or "", re.M | re.S)
+    return m.group(1) if m else None
+
+
+LOCK_RE = re.compile(r"^-\s*lock\s+(\S+)\s+(\d+\.\d+\.\d+)\s+started\s+(\S+)\s+token\s+(\w+)(?:\s+took over:.*)?\s*$")
+Q_LINE = re.compile(r"^-\s*\((q-\d+)\)")
+Q_RE = re.compile(r"^-\s*\((q-\d+)\)\s*\[since\s+(\d+\.\d+\.\d+)\]\s*(open|asked\s+(\S+)|answered\s+(\S+)|dropped\s+(\S+))\s*:\s*(\S.*)$")
+NEXT_RE = re.compile(r"\*\*Next, in (?:her|Rhea['’]s) order:\*\*[ \t]*([^\n]+)")   # one line, by design
+
+
+class Plan:
+    """The module's private plan doc (a local copy pulled with project_read): the build lock,
+    the open questions for Rhea, and Next in her order."""
+
+    def __init__(self, path):
+        self.path = path
+        with open(path, encoding="utf-8") as f:
+            self.text = f.read()
+        self.problems = []
+        if plan_section(self.text, "Build lock") is None:
+            self.problems.append("the plan doc has no `## Build lock` section")
+        if plan_section(self.text, "Open questions") is None:
+            self.problems.append("the plan doc has no `## Open questions` section")
+        self.locks = [LOCK_RE.match(l.strip()).groups() for l in (plan_section(self.text, "Build lock") or "").split("\n") if LOCK_RE.match(l.strip())]
+        self.questions = []
+        for l in strip_comments(plan_section(self.text, "Open questions") or "").split("\n"):
+            s = l.strip()
+            if not Q_LINE.match(s):
+                continue
+            m = Q_RE.match(s)
+            if not m:
+                self.problems.append(f"question not in the form `- (q-N) [since <version>] open|asked <date>|answered <date>|dropped <date>: <text>`: {s[:90]}")
+                continue
+            self.questions.append({"id": m.group(1), "since": m.group(2), "status": m.group(3).split()[0], "text": m.group(7)})
+        m = NEXT_RE.search(self.text)
+        self.next = m.group(1).strip() if m else None
+
+    def lock_for(self, mod):
+        return next((l for l in self.locks if l[0] == mod), None)
+
+    def set_lock(self, mod, version, started, token, note=None):
+        sec = plan_section(self.text, "Build lock")
+        keep = [l for l in sec.split("\n") if not (LOCK_RE.match(l.strip()) and LOCK_RE.match(l.strip()).group(1) == mod)]
+        body = "\n".join(keep).rstrip("\n")
+        if version:
+            body += f"\n- lock {mod} {version} started {started} token {token}" + (f" took over: {note}" if note else "")
+        self._replace_section("Build lock", body.strip("\n"))
+
+    def _replace_section(self, title, body):
+        m = re.search(rf"^(##\s+{re.escape(title)}\b[^\n]*\n)(.*?)(?=^##\s|\Z)", self.text, re.M | re.S)
+        self.text = self.text[:m.start()] + m.group(1) + body + "\n\n" + self.text[m.end():]
+
+    def save(self):
+        with open(self.path, "w", encoding="utf-8") as f:
+            f.write(self.text)
+
+
+def overdue_questions(plan, versions, new_version=None):
+    """Open questions carried through two handoffs or more: two change records (one per handoff)
+    at or after the version they were first carried in, not counting the one being started."""
+    out = []
+    for q in plan.questions:
+        if q["status"] not in ("open", "asked"):   # "asked, Rhea: later" doesn't stop the clock
+            continue
+        carried = [v for v in versions if vkey(v) >= vkey(q["since"]) and v != new_version]
+        if len(carried) >= 2:
+            out.append((q, len(carried)))
+    return out
+
+
+def manifest_id(root, cfg):
+    try:
+        return json.loads(read(root, cfg["manifest"])).get("id")
+    except Exception:
+        return None
+
+
+def remote_branches(root):
+    """Remote branch names, or None when the remote can't be listed (said, not hidden)."""
+    r = subprocess.run(["git", "ls-remote", "--heads", "origin"], cwd=root, capture_output=True, text=True)
+    if r.returncode != 0:
+        return None
+    out = r.stdout
+    return sorted(l.split("refs/heads/", 1)[1] for l in out.split("\n") if "refs/heads/" in l)
