@@ -156,6 +156,9 @@ this doesn't happen today). The lock and the questions live in a private doc the
 file passed with `--plan`; committing and pushing it is the chat's step, checked by `handoff`.
 
 ## Traps of the tools themselves
+- Changing the tools: run `git config core.hooksPath selfhooks` in the clone first. Its `pre-push` runs the
+  tests and refuses a push when one fails (2026-11-10: a commit with a failing test was pushed because the commit
+  wasn't chained to the test result).
 - A script that asks git about one file must pass the full path, or run from the top of the clone: a path
   relative to the top, used from a subfolder, matches nothing and git answers "clean". It made `handoff` accept an
   unsaved plan until a test caught it (2026-11-10).

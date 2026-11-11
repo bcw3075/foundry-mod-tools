@@ -1,0 +1,9 @@
+#!/bin/sh
+# This repo's own guard (2026-11-10: a commit with one failing test was pushed, because the commit was
+# not chained to the test result). Switch on in every clone: git config core.hooksPath selfhooks
+cd "$(git rev-parse --show-toplevel)" || exit 1
+if ! python3 -m unittest discover -s tests >/tmp/modtools-selftest.log 2>&1; then
+  tail -5 /tmp/modtools-selftest.log
+  echo "pre-push: the tools' own tests fail; nothing pushed (log: /tmp/modtools-selftest.log)"
+  exit 1
+fi
