@@ -63,6 +63,8 @@ build); then confirm the install by a changed file's text under `/modules/<id>/`
 old, and reload the Bridge's page with its cache cleared before testing. If a gate line ever claims something nobody did, stop and fix the tool,
 with a test that fails on the old code.
 
+**When a close-out pass is due, the gate refuses even the test build until at least 3 items are closed:** run the close-out's live tests on the version already installed first, then build. Work on `main` directly; a working branch is left for the end-of-project cleanup (Claude can't delete branches).
+
 ## The tightening (protocol 2, agreed with Rhea 2026-11-08)
 Records made from the template since then carry `protocol: 2` and get these rules. Set `protocol2From`
 in `.modtools.json` to the first version under them: the gate then refuses a record without the line,
@@ -110,7 +112,7 @@ so deleting it can't switch the rules off.
    (`--take-over "<her OK>"`, kept on the lock line); `finish` clears it when nothing is left, and
    `handoff` refuses while it's held. After each, the chat commits and pushes the plan: the scripts print
    the words, `finish` reminds the chat to write the signpost again, and `handoff` refuses a plan in a git
-   clone that isn't committed and pushed. (A plan passed as a loose file is still accepted; then the chat
+   clone that isn't committed and pushed. (Why: on 2026-11-09 a chat cleared the lock only in its local copy, and the next chat's `guide start` refused until Rhea went back to the old chat.) (A plan passed as a loose file is still accepted; then the chat
    writes it back with project_write.)
 7. **Leftover branches listed.** `finish` notes every remote branch other than main. Rhea (2026-11-09):
    no deletes as they come; they go in one cleanup at the end of the project, so this is a note, not a 🟡 line.
@@ -154,6 +156,7 @@ still work; they are deliberate, visible acts, and the skills forbid them. The b
 the clone's git config: two chats sharing one clone would share it (each chat has its own workspace, so
 this doesn't happen today). The lock and the questions live in a private doc the scripts only see as the
 file passed with `--plan`; committing and pushing it is the chat's step, checked by `handoff`.
+Stronger levers exist if a gate is ever bypassed: a Claude plugin "mod" with a hooks module can deny a tool call (plugin-authoring skill); GitHub branch protection can require an Actions check. Deferred by Rhea's decision.
 
 ## Traps of the tools themselves
 - Changing the tools: run `git config core.hooksPath selfhooks` in the clone first. Its `pre-push` runs the
