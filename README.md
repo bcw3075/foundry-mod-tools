@@ -93,6 +93,9 @@ so deleting it can't switch the rules off.
    (the live state no script can see), and prints the fixed layout: what was released, read and load,
    Next in Rhea's order (the plan's `**Next, in Rhea's order:**` line), open questions, the unverified
    count, state, where things are (config `handoff.where`), the archive reminder; 🟡 lines after it.
+   **Load by phase (2026-11-10):** with `handoff.loadByPhase` in the config (`design`, `build`, `live` in the
+   template), `handoff` needs `--next <phase>` and its load line names only what that kind of chat needs: a design
+   chat once loaded five skills where it needed one.
 5. **Questions for Rhea don't sit.** They live in the plan doc's `## Open questions` as
    `- (q-N) [since <version>] open|asked <date>|answered <date>|dropped <date>: <text>`. One carried
    through two handoffs (two change records at or after `since`) is printed by `start` under ASK RHEA
@@ -117,7 +120,7 @@ so deleting it can't switch the rules off.
    doc the chat touched reread, every project doc naming the module or its version (plan, history, baseline, roadmap,
    docs index), memory notes, every lesson filed (small traps too), and the live server left clean. It writes the
    answer to the plan doc's `## Last recheck` (made if missing); `handoff` refuses until that line is for the current
-   release, and prints it. A script can't do the recheck; it makes skipping it a visible act. Added after 0.18.0's
+   release, and points to it (one home since 2026-11-10: the text is in the plan only, not copied into the handoff or the record). A script can't do the recheck; it makes skipping it a visible act. Added after 0.18.0's
    finish missed a stale roadmap line and two unsaved traps, found only when Rhea asked "No updates needed?".
 Also: a shared check is listed once even when it's shared with several touched features.
 

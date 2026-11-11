@@ -21,7 +21,13 @@
   "pageChecks": [
     {"id": "calendar-off", "why": "Simple Calendar's window comes back on each page", "script": "tools/setup/calendar-off.js", "pages": "the Bridge's page, each hidden session, the browser pane"}
   ],
-  "handoff": {"load": "Load foundry-module-dev, foundry-test-process and the module's skill.", "where": ["claude/<module>.md (history)"]},
+  "handoff": {"load": "Load foundry-module-dev, foundry-test-process and the module's skill.",
+    "loadByPhase": {
+      "design": "Load only the module's skill; read the plan and the design doc. No Foundry skills, no `guide start`.",
+      "build": "Load foundry-module-dev and the module's skill; `guide start`. Load foundry-vtt-operator, foundry-bridge and foundry-test-process when the chat first touches the live server (the test build), not before.",
+      "live": "Load foundry-module-dev, foundry-vtt-operator, foundry-bridge, foundry-test-process and the module's skill."
+    },
+    "where": ["claude/<module>.md (history)"]},
   "finishList": [
     "project doc for this module (what changed, what was verified)",
     "the module's skill card, if the skill text changed",

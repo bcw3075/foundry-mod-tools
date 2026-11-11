@@ -10,7 +10,8 @@
   guide finish [--plan <plan>] [--rechecked "<what was rechecked, and what it fixed>"]
                                what is still unsaved: git, the record, owed lessons, branches, the lock;
                                refuses until everything was rechecked (Rhea's rule, 2026-11-09)
-  guide handoff --plan <plan> --state "<text>"   the handoff, in the fixed layout
+  guide handoff --plan <plan> --state "<text>" [--next <phase>]   the handoff, in the fixed layout
+                               (--next is required when the config has `handoff.loadByPhase`)
   guide unverified [add "<text>"]   the open unverified items, or add one (file and record)
   guide new-feature <name>   create a feature doc from the template
   guide traps [<word> ...] [--section <n>]
@@ -468,7 +469,14 @@ def cmd_finish(root, cfg, plan_path=None, version=None, rechecked=None):
     return 1 if issues else 0
 
 
-def cmd_handoff(root, cfg, plan_path=None, state=None):
+def cmd_handoff(root, cfg, plan_path=None, state=None, next_phase=None):
+    # load by phase, not by habit (efficiency review item 3, 2026-11-10): with `handoff.loadByPhase` in the config the
+    # handoff names what the NEXT chat's kind of work needs, and nothing more
+    phases = (cfg.get("handoff") or {}).get("loadByPhase") or {}
+    if phases and next_phase not in phases:
+        raise c.Fail(f"--next <{'|'.join(phases)}> is required: say what kind of chat comes next, so its load line names only what that needs")
+    if next_phase and not phases:
+        raise c.Fail("--next was given but .modtools.json has no `handoff.loadByPhase`")
     if not state:
         raise c.Fail('--state "<world, scene, pause, sessions, chat cards, browser pane>" is required: the script can\'t see the server')
     plan = load_plan(cfg, plan_path)
@@ -488,7 +496,7 @@ def cmd_handoff(root, cfg, plan_path=None, state=None):
     title = m.group(1) if m else ""
     ho = cfg.get("handoff") or {}
     lines = [f"{mod} {version} ({title}): gate passed, committed and pushed. What was installed and tested: {rel}.", "",
-             "Read memory preferences.md first.", ho.get("load") or "Load the module's skills.", ""]
+             "Read memory preferences.md first.", (f"Next chat: {next_phase}. {phases[next_phase]}" if phases else ho.get("load") or "Load the module's skills."), ""]
     if plan is not None:
         if not plan.next:
             raise c.Fail("the plan doc has no `**Next, in Rhea's order:** ...` line")
@@ -503,7 +511,9 @@ def cmd_handoff(root, cfg, plan_path=None, state=None):
         else:
             lines.append("Open questions for Rhea: none.")
         lines.append("")
-        lines += [f"Rechecked before finishing ({plan.recheck['date']}): {plan.recheck['text']}", ""]
+        # one home (efficiency review item 8, 2026-11-10): the text lives in the plan's Last recheck; the handoff points to it,
+        # and the change record doesn't repeat it
+        lines += [f"Rechecked before finishing ({plan.recheck['date']}): done; what was rechecked is in the plan's `## Last recheck`.", ""]
     items, _ = c.read_unverified(root, cfg)
     if items is not None:
         n = sum(1 for i in items.values() if i["status"] == "open")
@@ -634,6 +644,7 @@ def main(argv=None):
         plan_path = opt(argv, "--plan")
         takeover = opt(argv, "--take-over")
         state = opt(argv, "--state")
+        next_phase = opt(argv, "--next")
         rechecked = opt(argv, "--rechecked")
         if not argv:
             code = cmd_map(root, cfg, feats)
@@ -642,7 +653,7 @@ def main(argv=None):
         elif argv[0] == "finish":
             code = cmd_finish(root, cfg, plan_path, argv[1] if len(argv) > 1 else None, rechecked)
         elif argv[0] == "handoff":
-            code = cmd_handoff(root, cfg, plan_path, state)
+            code = cmd_handoff(root, cfg, plan_path, state, next_phase)
         elif argv[0] == "unverified":
             code = cmd_unverified(root, cfg, argv[1:])
         elif argv[0] == "--diff":

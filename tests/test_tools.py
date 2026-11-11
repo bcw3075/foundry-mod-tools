@@ -753,12 +753,25 @@ class TestTightening(Base):
                      "Next, in Rhea's order: the Change button, player reactions.", "(q-1) ASK FIRST Should escaped",
                      "(q-2) A newer question", "Unverified: 1 open in docs/unverified.md", "State: PF2 Test running, paused",
                      "claude/fixture.md (history)", "claude/fixture-plan.md", "archive the old chat",
-                     "Rechecked before finishing (", "nothing stale"):
+                     "Rechecked before finishing (", "the plan's `## Last recheck`"):
             self.assertIn(want, out)
         self.assertNotIn("Old one", out)
+        # item 3 (2026-11-10): with loadByPhase the handoff must say what kind of chat comes next
+        cfg = json.loads(read(self.repo, ".modtools.json"))
+        cfg["handoff"]["loadByPhase"] = {"design": "Load only the fixture skill.", "build": "Load the build skills."}
+        write(self.repo, ".modtools.json", json.dumps(cfg, indent=1) + "\n")
+        run(self.repo, "gate")
+        git(self.repo, "add", "-A"); git(self.repo, "commit", "-q", "-m", "phases")
+        subprocess.run(["git", "push", "-q", "origin", "main"], cwd=self.repo, env=dict(os.environ, MODTOOLS=TOOLS))
+        code, out2 = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        self.assertNotEqual(code, 0)
+        self.assertIn("--next <design|build> is required", out2)
+        code, out2 = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x", "--next", "design")
+        self.assertIn("Next chat: design. Load only the fixture skill.", out2)
+        self.assertNotIn("Load the fixture skills.", out2)
         plan = read(self.tmp, "plan.md")
         write(self.tmp, "plan.md", re.sub(r"- 0\.2\.0 (\d{4}-\d{2}-\d{2}):", r"- 0.1.0 \1:", plan))
-        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x", "--next", "build")
         self.assertNotEqual(code, 0)
         self.assertIn("no recheck recorded for 0.2.0", out)      # an older release's recheck doesn't count
         write(self.tmp, "plan.md", plan)
