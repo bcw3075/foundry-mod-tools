@@ -526,6 +526,49 @@ def tools_dir():
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+TRAPS_DOC = "docs/foundry-traps.md"     # in this tools repo: the general Foundry and PF2e traps, moved out of the skill
+TRAPS_ID = "traps-read"                 # the Setup line the gate wants when code changed
+
+
+def traps_path():
+    return os.path.join(tools_dir(), TRAPS_DOC)
+
+
+def traps_sections():
+    """The traps doc as [(heading, [bullet or paragraph, ...])]; a bullet keeps the lines that follow it
+    (a code block) up to the next bullet or blank line."""
+    p = traps_path()
+    if not os.path.isfile(p):
+        raise Fail(f"{TRAPS_DOC} is missing from the tools repo ({tools_dir()}): pull foundry-mod-tools again")
+    out, items, cur, fence = [], None, None, False
+    with open(p, encoding="utf-8") as f:
+        for line in f.read().split("\n"):
+            if line.startswith("```"):
+                fence = not fence
+            if not fence and line.startswith("## "):
+                items = []
+                out.append((line[3:].strip(), items))
+                cur = None
+            elif items is None:
+                continue
+            elif not fence and (line.startswith("- ") or re.match(r"^\d+\. ", line) or (line.strip() and cur is None)):
+                cur = [line]
+                items.append(cur)
+            elif line.strip() or fence:
+                if cur is not None:
+                    cur.append(line)
+            else:
+                cur = None
+    return [(h, ["\n".join(i) for i in items]) for h, items in out]
+
+
+def traps_pointer():
+    return (f"TRAPS: before the first code change read the general traps: `guide traps` lists the sections of "
+            f"{traps_path()}; `guide traps <word> ...` prints the bullets that name what the change touches; "
+            f"`guide traps --section 4` prints one whole. Then record `- {TRAPS_ID} done: <what was read>` under "
+            f"Setup (the gate refuses a code change without it). A new general trap goes into that doc in the same step.")
+
+
 def template(tpl, **fields):
     """A template with its {placeholders} filled; other braces (check tags) are left alone."""
     with open(os.path.join(tools_dir(), "templates", tpl), encoding="utf-8") as f:
@@ -616,7 +659,7 @@ def needs_lesson_scope(cfg, version, meta):
 def lesson_scope_problems(body):
     """Each lesson starts `- [general]` (true beyond this module: Foundry, PF2e, the bridge, the tools) or
     `- [module]` (only this module: any home). A general lesson must reach a home every chat can find: a skill
-    card (`→ card proposed:` / `→ card saved:`) or a project doc (`→ filed: claude/...`), whichever is that
+    card (`→ card proposed:` / `→ card saved:`) a project doc (`→ filed: claude/...`) or the general traps doc (`→ filed: foundry-mod-tools docs/foundry-traps.md`), whichever is that
     fact's one home (claude/docs-index.md); a module's own repo docs alone aren't enough. Skills stay lean:
     most general lessons belong in the project doc a skill points to, not the skill itself."""
     out = []
@@ -628,8 +671,8 @@ def lesson_scope_problems(body):
         if m.group(1).lower() != "general" or kind in (None, "owed"):
             continue
         homes = [(k.lower(), h.strip()) for k, h in LEARN_RE.findall(line)]
-        if not any(k in ("card proposed", "card saved") or (k == "filed" and "claude/" in h) for k, h in homes):
-            out.append(f"general lesson filed only in this module's docs: file it in its one home too (a project doc `→ filed: claude/...`, or a skill card `→ card proposed: <skill>`): {line[:90]}")
+        if not any(k in ("card proposed", "card saved") or (k == "filed" and ("claude/" in h or "foundry-mod-tools" in h)) for k, h in homes):
+            out.append(f"general lesson filed only in this module's docs: file it in its one home too (a project doc `→ filed: claude/...`, the general traps `→ filed: foundry-mod-tools docs/foundry-traps.md`, or a skill card `→ card proposed: <skill>`): {line[:90]}")
     return out
 
 

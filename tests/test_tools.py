@@ -28,9 +28,10 @@ def set_version(repo, v):
     write(repo, "module.json", json.dumps(m, indent=1) + "\n")
 
 
-def fill_record(repo, version, checks, review="- reviewer: no findings (verified: read the diff)\n", title="Alpha returns one again", unverified="- none\n", learned="- [module] nothing new → filed: nowhere needed\n"):
+def fill_record(repo, version, checks, review="- reviewer: no findings (verified: read the diff)\n", title="Alpha returns one again", unverified="- none\n", learned="- [module] nothing new → filed: nowhere needed\n", traps="- traps-read done: guide traps hook (2 bullets)"):
     rel = f"docs/changes/{version}.md"
     text = read(repo, rel).replace("<what this release does>", title)
+    text = re.sub(r"^- traps-read not run: pending[^\n]*$", traps, text, count=1, flags=re.M)   # rule 14; pass traps="" to leave it out
     def put(sec, body):
         nonlocal text   # replace the whole section body, keeping its heading
         text = re.sub(rf"(^## {re.escape(sec)}[^\n]*\n)(.*?)(?=^## |\Z)", lambda m: m.group(1) + body + "\n", text, count=1, flags=re.M | re.S)
@@ -481,7 +482,7 @@ class TestTightening(Base):
     def start(self, version="0.2.0", *extra):
         return run(self.repo, "guide", "start", version, "Fixture change", "--plan", self.plan, *extra)
 
-    def finish_change(self, version="0.2.0", asked="- q-1 asked 2026-11-09: stay hidden\n", setup="- cal-off done: setting off, window closed on both pages\n"):
+    def finish_change(self, version="0.2.0", asked="- q-1 asked 2026-11-09: stay hidden\n", setup="- cal-off done: setting off, window closed on both pages\n- traps-read done: guide traps hook (2 bullets)\n"):
         write(self.repo, "scripts/alpha.mjs", "export function alphaOne() { return 1; } // v2\n")
         append(self.repo, "docs/features/alpha.md", "- a comment was added\n")
         set_version(self.repo, version)
@@ -547,6 +548,68 @@ class TestTightening(Base):
         code, out = run(self.repo, "gate", "--check")
         self.assertNotEqual(code, 0)
         self.assertIn("page check `cal-off` is still pending", out)
+
+    # efficiency review item 2 (2026-11-10): the general traps left the skill for docs/foundry-traps.md
+    def test_traps_pointer_printed_and_line_required_when_code_changed(self):
+        self.use_plan()
+        code, out = self.start()
+        self.assertIn("TRAPS: before the first code change", out)
+        self.assertIn("foundry-traps.md", out)
+        self.assertIn("- traps-read not run: pending", read(self.repo, "docs/changes/0.2.0.md"))
+        for bad in ("- cal-off done: off\n", "- cal-off done: off\n- traps-read not run: pending\n",
+                    "- cal-off done: off\n- traps-read not run: no time\n", "- cal-off done: off\n- traps-read done:\n"):
+            self.finish_change(setup=bad)
+            code, out = run(self.repo, "gate", "--check")
+            self.assertNotEqual(code, 0, bad)
+            self.assertIn("code changed but Setup has no `- traps-read done:", out, bad)
+        code, out = run(self.repo, "guide", "--diff")
+        self.assertIn("TRAPS: before the first code change", out)      # printed again at the moment code has changed
+        self.finish_change()
+        code, out = run(self.repo, "gate", "--check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("general traps read", out)
+
+    def test_traps_line_not_required_without_a_code_change(self):
+        self.use_plan()
+        self.start()
+        append(self.repo, "docs/features/alpha.md", "- a doc-only note\n")
+        set_version(self.repo, "0.2.0")
+        fill_record(self.repo, "0.2.0", "- none needed\n", review="", traps="- traps-read not run: pending")
+        rel = "docs/changes/0.2.0.md"
+        text = read(self.repo, rel).replace("- cal-off not run: pending", "- cal-off done: off").replace("- q-1 pending", "- q-1 asked 2026-11-09: stay hidden")
+        write(self.repo, rel, text)
+        code, out = run(self.repo, "gate", "--check")
+        self.assertIn("traps line not required", out)
+        self.assertNotIn("traps-read done", out)
+
+    def test_guide_traps_lists_searches_and_prints_a_section(self):
+        code, out = run(self.tmp, "guide", "traps")                     # works outside a mod repo
+        self.assertEqual(code, 0, out)
+        for h in ("## 4. Module structure", "## 7. Local test harness pattern", "## 8. Foundry v14 + PF2e traps", "## 9. Canvas and performance lessons"):
+            self.assertIn(h, out)
+        code, out = run(self.repo, "guide", "traps", "ForcedReplacement", "flatMap")
+        self.assertEqual(code, 0, out)
+        self.assertIn("An update merges objects into what's stored", out)
+        self.assertIn("Embedded collections", out)
+        self.assertIn("2 item(s) name", out)
+        self.assertNotIn("Tile x/y is the centre", out)
+        code, out = run(self.repo, "guide", "traps", "--section", "9")
+        self.assertIn("filter: blur()", out)
+        self.assertNotIn("Tile x/y is the centre", out)
+        code, out = run(self.repo, "guide", "traps", "--section", "3")
+        self.assertNotEqual(code, 0)
+        code, out = run(self.repo, "guide", "traps", "zzzznothing")
+        self.assertIn("0 item(s)", out)
+
+    def test_traps_doc_keeps_every_bullet_whole(self):
+        import sys as _s
+        _s.path.insert(0, TOOLS) if TOOLS not in _s.path else None
+        from modtools import common as cm
+        secs = dict((h.split(".")[0], items) for h, items in cm.traps_sections())
+        self.assertEqual(sorted(secs), ["4", "7", "8", "9"])
+        self.assertTrue(all(i.startswith("- ") for n in secs for i in secs[n]), "every item is a bullet")
+        self.assertGreaterEqual(len(secs["8"]), 43)                      # the 43 moved on 2026-11-10; it only grows
+        self.assertGreaterEqual(len(secs["4"]), 16)
 
     def test_missing_page_check_script_is_a_setup_problem(self):
         self.use_plan()
@@ -791,6 +854,9 @@ class TestTightening(Base):
         fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md, claude/foundry-op-recipes.md\n")
         code, out = run(self.repo, "gate", "--check")
         self.assertNotIn("lessons:", out)
+        fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: foundry-mod-tools docs/foundry-traps.md\n")
+        code, out = run(self.repo, "gate", "--check")           # the general traps doc is a home too (2026-11-10)
+        self.assertNotIn("general lesson filed only", out)
         fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md → card proposed: foundry-module-dev\n- [module] a module trap → filed: docs/features/alpha.md\n")
         code, out = run(self.repo, "gate", "--check")
         self.assertNotIn("lessons:", out)

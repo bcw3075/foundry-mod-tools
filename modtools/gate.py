@@ -22,6 +22,7 @@ Conditions (every one is reported; the first failure refuses the release):
     close-out pass when more than the limit were open at the record's base
  13 every lesson in Learned naming its home (`→ filed:` and the others); from `lessonScopeFrom` each tagged
     `[general]` (then its home is a skill card) or `[module]`
+ 14 when code changed: `- traps-read done: <what was read>` under Setup (the general traps, `guide traps`)
 """
 import datetime, io, json, os, re, subprocess, sys, zipfile
 from . import common as c
@@ -151,6 +152,7 @@ class Gate:
             self.refuse(f"{rel}: the title is still the template's")
         self.unverified = c.record_section(body, "Unverified") or ""
         self.version, self.files, self.touched = version, files, touched
+        self.code_changed = bool(code_changed)
         if c.is_protocol2(meta):
             self.protocol2(rel, base, body, version, meta)
         elif c.needs_protocol2(cfg, version):
@@ -176,6 +178,15 @@ class Gate:
             if res[0] == "done" and not res[1]:
                 self.refuse(f"page check `{pc['id']}`: say what was seen")
         self.ok(f"page checks recorded ({len(cfg.get('pageChecks') or [])})")
+        # 14 the general traps were read before code changed (they left the skill for docs/foundry-traps.md, 2026-11-10)
+        if self.code_changed:
+            res = setup.get(c.TRAPS_ID)
+            if not res or res[0] != "done" or not res[1]:
+                self.refuse(f"code changed but Setup has no `- {c.TRAPS_ID} done: <what was read>`: run `guide traps <words for what the "
+                            f"change touches>` ({c.TRAPS_DOC} in the tools repo), read what it prints, then record it")
+            self.ok(f"general traps read ({res[1][:60]})")
+        else:
+            self.ok("no code change under reviewPaths; traps line not required")
         # 11 questions asked first
         asked = {}
         for l in c.bullets(c.record_section(body, "Asked first")):

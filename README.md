@@ -41,6 +41,16 @@ python3 ../foundry-mod-tools/guide.py handoff --plan <plan> --state "<live state
 ```
 `guide` alone prints the feature map. `doccheck.py` and `scan.py` run on their own too.
 
+**The general traps (`docs/foundry-traps.md`, here since 2026-11-10).** What every module's code must know about
+Foundry v14 and PF2e (module structure, the local test harness, the traps, canvas lessons) used to be half of the
+foundry-module-dev skill, paid for in every chat. It lives in this repo now, word for word, and is read when code is
+written: `guide start` and `guide --diff` (once code has changed) print the pointer; `guide traps` lists the sections,
+`guide traps <word> ...` prints every bullet naming any of the words, `guide traps --section <n>` prints one whole; the
+gate refuses a code change whose record has no `- traps-read done: <what was read>` under Setup. A new general trap
+is added to that doc in the same step it is found (its one home; the record's Learned line says
+`→ filed: foundry-mod-tools docs/foundry-traps.md`). The doc is public: no campaign words (scan it with the word list
+before committing).
+
 **A release in two gates (the live checks need the code installed):** record each live check
 `not run: pending live test (test build)` and start the independent review at once, with a Review
 line `- pending (test build): …`; gate, push and install the test build; test; then write the real
@@ -125,6 +135,8 @@ Also: a shared check is listed once even when it's shared with several touched f
 8. The Review section is filled when code changed (or `waived by Rhea <date>: <reason>`). Template
    hints (`<!-- -->`, even over several lines) never count as content or as a waiver.
 9. The record's title is no longer the template's.
+10. to 13. The tightening's rules (above) for `protocol: 2` records.
+14. When code changed (`protocol: 2` records): `- traps-read done: <what was read>` under Setup.
 
 Then it builds the zip from the tree (deterministic, includes only the configured folders, never
 the word list) and writes `.modtools-stamp.json` with a hash of the tree. The `pre-push` hook

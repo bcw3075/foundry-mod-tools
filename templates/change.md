@@ -10,7 +10,8 @@ askFirst: [{askfirst}]
 
 ## Setup
 <!-- One line per page check (`guide start` prints the scripts): run it on every page this chat uses,
-     then `- <id> done: what was seen`, or `- <id> not run: why`. The gate refuses `pending`. -->
+     then `- <id> done: what was seen`, or `- <id> not run: why`. The gate refuses `pending`.
+     `- traps-read done: <sections or words read>` is needed once code changes (`guide traps <word> ...`). -->
 {setup}
 ## Asked first
 <!-- Questions carried through two handoffs, asked before any build work: `- q-N asked <date>: Rhea's answer`

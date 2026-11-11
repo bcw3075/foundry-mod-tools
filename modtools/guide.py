@@ -13,6 +13,10 @@
   guide handoff --plan <plan> --state "<text>"   the handoff, in the fixed layout
   guide unverified [add "<text>"]   the open unverified items, or add one (file and record)
   guide new-feature <name>   create a feature doc from the template
+  guide traps [<word> ...] [--section <n>]
+                             the general Foundry and PF2e traps (docs/foundry-traps.md in this tools repo):
+                             no word lists the sections; words print every bullet naming any of them;
+                             --section prints one section whole. Works from any folder.
 """
 import datetime, os, re, subprocess, sys
 from . import common as c
@@ -144,7 +148,8 @@ def cmd_start(root, cfg, version, title=None, plan_path=None, takeover=None):
         carried = carried_lessons(root, cfg, version)
         text = c.template("change.md", version=version, date=datetime.date.today().isoformat(),
                           base=base, title=title or "<what this release does>",
-                          setup="".join(f"- {p['id']} not run: pending\n" for p in pages),
+                          setup="".join(f"- {p['id']} not run: pending\n" for p in pages)
+                                + f"- {c.TRAPS_ID} not run: pending (needed once code changes: `guide traps`)\n",
                           asked="".join(f"- {q['id']} pending\n" for q, _ in overdue),
                           askfirst=", ".join(q["id"] for q, _ in overdue),
                           learned="".join(f"{l}\n" for l in carried))
@@ -169,6 +174,7 @@ def cmd_start(root, cfg, version, title=None, plan_path=None, takeover=None):
             else:
                 probs.append(f"page check script {p['script']} is missing")
                 print(f"SETUP: page check script {p['script']} is missing")
+    print("\n" + c.traps_pointer())
     items, uprobs = c.read_unverified(root, cfg)
     if items is not None:
         open_n = sum(1 for i in items.values() if i["status"] == "open")
@@ -185,7 +191,9 @@ def cmd_start(root, cfg, version, title=None, plan_path=None, takeover=None):
         steps.append("ask Rhea the overdue questions above, one at a time; record her answers")
     if pages:
         steps.append("run the page checks on every page this chat uses; record them under Setup")
-    steps += ["fill the record's title and the decisions as they come", "build the change",
+    steps += ["fill the record's title and the decisions as they come",
+              f"before the first code change: `guide traps <words for what the change touches>`; record `- {c.TRAPS_ID} done: ...` under Setup",
+              "build the change",
               "`guide --diff` and run every check it lists; record each as pass / fail / not run",
               "new unverified items: `guide unverified add \"<text>\"`",
               "independent review of the diff and the record; verify and record its findings",
@@ -265,6 +273,8 @@ def cmd_diff(root, cfg, feats, base=None):
     print(f"Changed since {base[:9] if len(base) > 20 else base}: {len(files)} file(s)")
     for f in files:
         print("  ", f)
+    if any(f.startswith(p.rstrip("/") + "/") or f == p for f in files for p in cfg["reviewPaths"]):
+        print(c.traps_pointer())
     return report(root, cfg, feats, touched, unowned)
 
 
@@ -574,6 +584,36 @@ The gate counts the open ones; above the limit in `.modtools.json` a release mus
 """
 
 
+def cmd_traps(args):
+    args = list(args)
+    section = opt(args, "--section")
+    secs = c.traps_sections()
+    if section:
+        hit = [(h, items) for h, items in secs if h.split(".")[0].strip() == section.strip(". ")]
+        if not hit:
+            raise c.Fail(f"no section {section} in {c.TRAPS_DOC}; sections: {', '.join(h.split('.')[0] for h, _ in secs)}")
+        for h, items in hit:
+            print(f"## {h}")
+            print("\n".join(items))
+        return 0
+    if not args:
+        print(f"{c.traps_path()}")
+        for h, items in secs:
+            print(f"  ## {h}: {len(items)} item(s), {sum(len(i) for i in items)} characters")
+        print("guide traps <word> [<word> ...] prints the bullets naming any of the words; --section <n> prints one whole.")
+        return 0
+    words = [w.lower() for w in args]
+    n = 0
+    for h, items in secs:
+        found = [i for i in items if any(w in i.lower() for w in words)]
+        if found:
+            print(f"## {h}")
+            print("\n".join(found))
+            n += len(found)
+    print(f"\n{n} item(s) name {' or '.join(args)}." + ("" if n else " Try a shorter or different word, or `guide traps` for the sections."))
+    return 0
+
+
 def opt(argv, name):
     if name in argv:
         i = argv.index(name)
@@ -586,6 +626,8 @@ def opt(argv, name):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
+        if argv and argv[0] == "traps":
+            sys.exit(cmd_traps(argv[1:]))
         root = c.find_root()
         cfg = c.load_config(root)
         feats = c.load_features(root, cfg)
