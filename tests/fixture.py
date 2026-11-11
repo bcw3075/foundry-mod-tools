@@ -137,7 +137,7 @@ def build(base_dir):
     os.makedirs(os.path.join(repo, "tools/githooks"))
     shutil.copy(os.path.join(TOOLS, "githooks", "pre-push"), os.path.join(repo, "tools/githooks/pre-push"))
     os.chmod(os.path.join(repo, "tools/githooks/pre-push"), 0o755)
-    write(repo, ".private-words", "# words that must never reach the repo\nStoneclaim\nRedthorn Hollow\n")
+    write(repo, ".private-words", "# words that must never reach the repo\nFakeville\nMadeup Hollow\n")
     subprocess.run(["python3", os.path.join(TOOLS, "guide.py"), "--index"], cwd=repo, check=True, capture_output=True)
     # a committed zip with the right version, as a real repo has
     subprocess.run(["python3", "-c", "import zipfile,os;os.makedirs('dist',exist_ok=True);z=zipfile.ZipFile('dist/fixmod.zip','w');z.write('module.json');z.close()"], cwd=repo, check=True)

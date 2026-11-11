@@ -213,16 +213,16 @@ class TestDoccheckAndScan(Base):
         self.assertIn("shared:omega but no such feature", out)
 
     def test_scan_catches_planted_word_in_tracked_and_untracked_files(self):
-        append(self.repo, "docs/features/alpha.md", "Tested on the Stoneclaim map.\n")
-        write(self.repo, "docs/notes.md", "near redthorn hollow\n")   # untracked, different case
+        append(self.repo, "docs/features/alpha.md", "Tested on the Fakeville map.\n")
+        write(self.repo, "docs/notes.md", "near madeup hollow\n")   # untracked, different case
         code, out = run(self.repo, "scan")
         self.assertNotEqual(code, 0)
         self.assertIn("docs/features/alpha.md", out)
         self.assertIn("docs/notes.md", out)
-        self.assertNotIn("Stoneclaimed", out)
+        self.assertNotIn("Fakevilled", out)
 
     def test_scan_whole_words_only(self):
-        append(self.repo, "docs/features/alpha.md", "Stoneclaimed is not the word.\n")
+        append(self.repo, "docs/features/alpha.md", "Fakevilled is not the word.\n")
         code, out = run(self.repo, "scan")
         self.assertEqual(code, 0, out)
 
@@ -302,7 +302,7 @@ class TestGate(Base):
 
     def test_refuses_private_word(self):
         self.happy_change()
-        append(self.repo, "docs/changes/0.2.0.md", "\nTested at Stoneclaim.\n")
+        append(self.repo, "docs/changes/0.2.0.md", "\nTested at Fakeville.\n")
         self.refuse("private words")
 
     def test_refuses_without_word_list(self):
