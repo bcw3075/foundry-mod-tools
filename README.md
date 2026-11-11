@@ -27,7 +27,7 @@ read `.modtools.json`, the feature docs' frontmatter and git, nothing else.
 
 ## Every change
 ```
-python3 ../foundry-mod-tools/guide.py start 0.11.0 "Monsters fleeing" --plan /home/claude/scratch/plan.md
+python3 ../foundry-mod-tools/guide.py start 0.11.0 "Monsters fleeing" --plan /home/claude/angel-mod-private/plan/<module>-plan.md
                                        # the lock, questions to ask first, page checks, setup checks, hook on, record
 python3 ../foundry-mod-tools/guide.py --diff                            # what applies: docs, decisions, checks, traps, shared items
 python3 ../foundry-mod-tools/guide.py take-cover scripts/turn.mjs       # the same for named features or files
@@ -35,9 +35,9 @@ python3 ../foundry-mod-tools/guide.py take-cover scripts/turn.mjs       # the sa
 python3 ../foundry-mod-tools/gate.py                                    # refuses, or builds the zip and stamps the tree
 git commit; git push                                                    # the pre-push hook re-checks the stamp on main
 python3 ../foundry-mod-tools/guide.py unverified add "<what isn't proved>" # the running list and the record
-python3 ../foundry-mod-tools/guide.py finish --plan <copy> --rechecked "<what was rechecked, and what it fixed>"
+python3 ../foundry-mod-tools/guide.py finish --plan <plan> --rechecked "<what was rechecked, and what it fixed>"
                                                                      # what is still unsaved; owed lessons; branches; the recheck; clears the lock
-python3 ../foundry-mod-tools/guide.py handoff --plan <copy> --state "<live state>"   # the handoff, fixed layout
+python3 ../foundry-mod-tools/guide.py handoff --plan <plan> --state "<live state>"   # the handoff, fixed layout
 ```
 `guide` alone prints the feature map. `doccheck.py` and `scan.py` run on their own too.
 
@@ -87,12 +87,17 @@ so deleting it can't switch the rules off.
    through two handoffs (two change records at or after `since`) is printed by `start` under ASK RHEA
    FIRST, listed in the record's frontmatter `askFirst`, and written `- q-N pending` under Asked first;
    the gate refuses while one is pending or has no line. `asked` (Rhea: later) still counts toward overdue.
-6. **One build chat at a time.** With `planDoc` set, `start` and `finish` need `--plan <local copy>`
-   (pulled with project_read; the private doc never goes in the repo). `start` writes
+6. **One build chat at a time.** With `planDoc` set, `start` and `finish` need `--plan <path>`:
+   the plan file in the clone of Rhea's private repo (since 2026-11-10; the chat workspace can no longer copy
+   a project doc to disk, so the plan's one home is that repo and `planDoc` names its short project-doc
+   signpost for voice chats). The private doc never goes in the mod repo. `start` writes
    `- lock <mod> <version> started <time> token <t>` under `## Build lock` (the token lives in the
    clone's git config) and refuses when another chat's token is there, unless Rhea agreed
    (`--take-over "<her OK>"`, kept on the lock line); `finish` clears it when nothing is left, and
-   `handoff` refuses while it's held. The chat writes the copy back.
+   `handoff` refuses while it's held. After each, the chat commits and pushes the plan: the scripts print
+   the words, `finish` reminds the chat to write the signpost again, and `handoff` refuses a plan in a git
+   clone that isn't committed and pushed. (A plan passed as a loose file is still accepted; then the chat
+   writes it back with project_write.)
 7. **Leftover branches listed.** `finish` notes every remote branch other than main. Rhea (2026-11-09):
    no deletes as they come; they go in one cleanup at the end of the project, so this is a note, not a 🟡 line.
 8. **Recheck before finished (Rhea, 2026-11-09).** Her rule: when a task is complete, go back through and recheck
@@ -132,7 +137,7 @@ was seen, and a reviewer reads it against the chat. `git push --no-verify` and a
 still work; they are deliberate, visible acts, and the skills forbid them. The build lock's token lives in
 the clone's git config: two chats sharing one clone would share it (each chat has its own workspace, so
 this doesn't happen today). The lock and the questions live in a private doc the scripts only see as the
-copy passed with `--plan`; writing it back is the chat's step.
+file passed with `--plan`; committing and pushing it is the chat's step, checked by `handoff`.
 
 ## Tests
 `python3 -m unittest discover -s tests` builds a fixture repo with a bare remote and checks guide's

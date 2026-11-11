@@ -679,7 +679,7 @@ RECHECK_RE = re.compile(r"^-\s+(\S+)\s+(\d{4}-\d{2}-\d{2}):\s+(.+)$", re.M)
 
 
 class Plan:
-    """The module's private plan doc (a local copy pulled with project_read): the build lock,
+    """The module's private plan doc (the file in the private repo's clone, or a loose copy): the build lock,
     the open questions for Rhea, and Next in her order."""
 
     def __init__(self, path):

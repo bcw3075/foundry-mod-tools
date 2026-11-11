@@ -698,6 +698,43 @@ class TestTightening(Base):
         self.assertNotEqual(code, 0)
         self.assertIn("finish isn't clean", out)
 
+    def test_plan_kept_in_a_private_repo(self):
+        """Since 2026-11-10 the plan lives in a private git repo: the words say commit and push,
+        finish reminds of the signpost, and handoff refuses a plan that isn't committed and pushed."""
+        self.use_plan()
+        bare = os.path.join(self.tmp, "priv.git"); priv = os.path.join(self.tmp, "priv")
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", bare], check=True)
+        subprocess.run(["git", "clone", "-q", bare, priv], check=True, capture_output=True)
+        os.makedirs(os.path.join(priv, "plan"))
+        shutil.move(self.plan, os.path.join(priv, "plan", "p.md"))
+        self.plan = os.path.join(priv, "plan", "p.md")
+        def pgit(*a):
+            return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *a], cwd=priv, capture_output=True, text=True)
+        pgit("add", "-A"); pgit("commit", "-q", "-m", "plan"); pgit("push", "-q", "-u", "origin", "HEAD:main")
+        code, out = self.start()
+        self.assertEqual(code, 0, out)
+        self.assertIn("commit and push it (", out)
+        self.assertNotIn("project_write it back", out)
+        self.finish_change()
+        run(self.repo, "gate")
+        git(self.repo, "add", "-A"); git(self.repo, "commit", "-q", "-m", "0.2.0")
+        subprocess.run(["git", "push", "-q", "origin", "main"], cwd=self.repo, env=dict(os.environ, MODTOOLS=TOOLS))
+        code, out = run(self.repo, "guide", "finish", "--plan", self.plan, "--rechecked", "reread the record, docs, plan and roadmap; nothing stale")
+        self.assertEqual(code, 0, out)
+        self.assertIn("signpost: write the short project doc `claude/fixture-plan.md` again", out)
+        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        self.assertNotEqual(code, 0)
+        self.assertIn("has changes that aren't committed", out)
+        pgit("commit", "-q", "-am", "finish")
+        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        self.assertNotEqual(code, 0)
+        self.assertIn("is committed but not pushed", out)
+        pgit("push", "-q")
+        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        self.assertEqual(code, 0, out)
+        self.assertIn("plan/p.md in the private repo", out)
+        self.assertIn("claude/fixture-plan.md is its short signpost for voice chats", out)
+
     # the 0.16.0 finding: a check shared with two touched features was listed twice
     def test_shared_item_listed_once(self):
         sys.path.insert(0, TOOLS)
