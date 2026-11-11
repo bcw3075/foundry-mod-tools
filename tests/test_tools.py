@@ -568,6 +568,7 @@ class TestTightening(Base):
         code, out = run(self.repo, "gate", "--check")
         self.assertEqual(code, 0, out)
         self.assertIn("general traps read", out)
+        self.assertIn("guide traps --section 5", out)                    # the install steps are pointed to when the gate passes
 
     def test_traps_line_not_required_without_a_code_change(self):
         self.use_plan()
@@ -585,7 +586,7 @@ class TestTightening(Base):
     def test_guide_traps_lists_searches_and_prints_a_section(self):
         code, out = run(self.tmp, "guide", "traps")                     # works outside a mod repo
         self.assertEqual(code, 0, out)
-        for h in ("## 4. Module structure", "## 7. Local test harness pattern", "## 8. Foundry v14 + PF2e traps", "## 9. Canvas and performance lessons"):
+        for h in ("## 4. Module structure", "## 5. Release and install", "## 7. Local test harness pattern", "## 8. Foundry v14 + PF2e traps", "## 9. Canvas and performance lessons"):
             self.assertIn(h, out)
         code, out = run(self.repo, "guide", "traps", "ForcedReplacement", "flatMap")
         self.assertEqual(code, 0, out)
@@ -596,6 +597,9 @@ class TestTightening(Base):
         code, out = run(self.repo, "guide", "traps", "--section", "9")
         self.assertIn("filter: blur()", out)
         self.assertNotIn("Tile x/y is the centre", out)
+        code, out = run(self.repo, "guide", "traps", "--section", "5")
+        self.assertIn("installPackage", out)
+        self.assertIn("Installing restarts the world", out)
         code, out = run(self.repo, "guide", "traps", "--section", "3")
         self.assertNotEqual(code, 0)
         code, out = run(self.repo, "guide", "traps", "zzzznothing")
@@ -606,8 +610,10 @@ class TestTightening(Base):
         _s.path.insert(0, TOOLS) if TOOLS not in _s.path else None
         from modtools import common as cm
         secs = dict((h.split(".")[0], items) for h, items in cm.traps_sections())
-        self.assertEqual(sorted(secs), ["4", "7", "8", "9"])
-        self.assertTrue(all(i.startswith("- ") for n in secs for i in secs[n]), "every item is a bullet")
+        self.assertEqual(sorted(secs), ["4", "5", "7", "8", "9"])
+        self.assertTrue(all(i.startswith("- ") for n in secs if n != "5" for i in secs[n]), "every item is a bullet")
+        step7 = [i for i in secs["5"] if i.startswith("7. ")]
+        self.assertTrue(step7 and "installPackage" in step7[0], "the install script stays with its step")
         self.assertGreaterEqual(len(secs["8"]), 43)                      # the 43 moved on 2026-11-10; it only grows
         self.assertGreaterEqual(len(secs["4"]), 16)
 

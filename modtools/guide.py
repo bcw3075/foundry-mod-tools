@@ -198,7 +198,7 @@ def cmd_start(root, cfg, version, title=None, plan_path=None, takeover=None):
               "new unverified items: `guide unverified add \"<text>\"`",
               "independent review of the diff and the record; verify and record its findings",
               "`gate` (builds the zip and stamps the tree); commit; push (the hook re-checks the stamp)",
-              "install and check as foundry-module-dev section 5 says",
+              "install and check by `guide traps --section 5`, then the test checklist (foundry-module-dev section 6)",
               "file every lesson (`→ filed:`); `guide finish --plan`; `guide handoff`"]
     for s in steps:
         print(f"  - [ ] {s}")

@@ -324,6 +324,8 @@ class Gate:
             else:
                 uv = [l.strip() for l in c.strip_comments(self.unverified).split("\n") if l.strip()]
                 out.append("  unverified: " + ("; ".join(uv) if uv else "(record says nothing)"))
+            if not self.refused:
+                out.append("\nNext: commit, push, then install and check by the verified steps: `guide traps --section 5` (read them now, every release).")
         return "\n".join(out)
 
 

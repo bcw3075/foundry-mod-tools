@@ -42,11 +42,12 @@ python3 ../foundry-mod-tools/guide.py handoff --plan <plan> --state "<live state
 `guide` alone prints the feature map. `doccheck.py` and `scan.py` run on their own too.
 
 **The general traps (`docs/foundry-traps.md`, here since 2026-11-10).** What every module's code must know about
-Foundry v14 and PF2e (module structure, the local test harness, the traps, canvas lessons) used to be half of the
+Foundry v14 and PF2e (module structure, release and install, the local test harness, the traps, canvas lessons) used to be half of the
 foundry-module-dev skill, paid for in every chat. It lives in this repo now, word for word, and is read when code is
 written: `guide start` and `guide --diff` (once code has changed) print the pointer; `guide traps` lists the sections,
 `guide traps <word> ...` prints every bullet naming any of the words, `guide traps --section <n>` prints one whole; the
-gate refuses a code change whose record has no `- traps-read done: <what was read>` under Setup. A new general trap
+gate refuses a code change whose record has no `- traps-read done: <what was read>` under Setup. When the gate
+passes it prints `guide traps --section 5`: the verified release and install steps, read at every release. A new general trap
 is added to that doc in the same step it is found (its one home; the record's Learned line says
 `→ filed: foundry-mod-tools docs/foundry-traps.md`). The doc is public: no campaign words (scan it with the word list
 before committing).
@@ -150,6 +151,11 @@ still work; they are deliberate, visible acts, and the skills forbid them. The b
 the clone's git config: two chats sharing one clone would share it (each chat has its own workspace, so
 this doesn't happen today). The lock and the questions live in a private doc the scripts only see as the
 file passed with `--plan`; committing and pushing it is the chat's step, checked by `handoff`.
+
+## Traps of the tools themselves
+- A script that asks git about one file must pass the full path, or run from the top of the clone: a path
+  relative to the top, used from a subfolder, matches nothing and git answers "clean". It made `handoff` accept an
+  unsaved plan until a test caught it (2026-11-10).
 
 ## Tests
 `python3 -m unittest discover -s tests` builds a fixture repo with a bare remote and checks guide's

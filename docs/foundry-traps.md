@@ -11,6 +11,7 @@ How to use it (the gate wants `- traps-read done: <what was read>` under the rec
   (for example `traps combat turn initiative` before touching the turn loop, `traps region tile` before map work).
 - `python3 ../foundry-mod-tools/guide.py traps --section 4` prints one section whole. Read section 4 in full before
   the first code of a new module, and search section 8 by the things the change touches before each change.
+- Section 5 is the release and install steps: the gate prints `guide traps --section 5` when it has built the zip.
 
 ## 4. Module structure
 - `module.json`: `id`, `title`, `version`, `compatibility` {minimum 13 or 14, verified "14"}, `esmodules`, `styles`, `languages` if any, `relationships` (`systems: [{id:"pf2e", type:"system", compatibility:{minimum:"8.0"}}]`; requires: libWrapper/socketlib only if used), `manifest` = raw GitHub URL of `module.json` on `main`, `download` = raw GitHub URL of a zip **committed in the repo** (`dist/<id>.zip`, files at the zip root).
@@ -29,6 +30,23 @@ How to use it (the gate wants `- traps-read done: <what was read>` under the rec
 - Determinism: key anything generated to fixed world positions/lattices and a seed, so rebuilds are identical and extending never moves things.
 - One module reading another's data: give it a pure read with a `schema` number the reader refuses if it doesn't know it, and a hook after changes; let the reader fall back in plain words if the other module is missing.
 - **Work on a page nobody watches** (the Claude Bridge's): a dialog there waits for ever. Give each step a time limit, stop as soon as a window that looks like a prompt opens, close what opened, and record the step so nothing repeats. Check both `ui.windows` (v1 apps, such as PF2e's Modifier dialog) and `foundry.applications.instances`.
+
+## 5. Release and install (verified flow)
+1. Bring the feature docs and `docs/DEVELOPING.md` up to date with the change, and reread what `guide --diff` printed (the scripts can't see changed behaviour). Bump `version` in `module.json`.
+2. Run `python3 ../foundry-mod-tools/gate.py` (section 0): it refuses until docs, checks, review and the scan are in order, then **builds the zip itself** from the tree and stamps it (the manifest downloads the committed zip; a stale zip installs old code, and a hand-built one is forbidden).
+3. Commit, push branch and `main`; the `pre-push` hook re-checks the stamp on `main`. Repos not yet on the protocol (Survey Sheet, the bridge): run `python3 tools/doccheck.py`, rebuild the zip with `rm dist/<id>.zip && zip -qr dist/<id>.zip module.json styles scripts icons` (whatever folders exist), and adopt the protocol when next touched (section 10).
+4. (step 4 folded into 2 and 3)
+5. Poll until raw GitHub serves the new version in **both** `module.json` and the zip (`unzip -p` the downloaded zip's module.json).
+6. Browser pane: `/join` → "Return to Setup" → confirm "Yes". The button sits in a collapsed section: click its "Return to Setup" label (find it with `find "setup"`), then click the "Yes" that appears. If it lands on `/auth`, ask Rhea to type the admin password (the unlock doesn't last: check `/join` for "authenticated as a server administrator" before every install; foundry-vtt-operator section 1).
+7. On `/setup`, install by POST (the Install Module form sometimes reinstalled a cached version), **polling until the version matches**: one install still showed the old version after 12 s, and sending the next steps in the same batch hid that until the world had relaunched.
+```js
+await fetch('/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'installPackage',type:'module',id:'<id>',manifest:'<manifest url>'})});
+let v; for (let i=0;i<14;i++){await new Promise(r=>setTimeout(r,2000)); v=(await (await fetch('/modules/<id>/module.json',{cache:'no-store'})).json()).version; if(v==='<new>')break} v
+```
+8. Reload `/setup` (navigate, then wait ~2 s before looking for the button), click `[data-package-id="pf2-test"] [data-action="worldLaunch"]` (from a `setTimeout`, so the script returns before the page navigates), wait ~10 s, at `/join` set `select[name=userId]` to AI (dispatch `change`) and click Join. Wait ~10 s. The bridge rejoins by itself within about 20 s; confirm with `foundry_status` and check `game.modules.get(id).version` through `run_script`. **A module that runs on the Bridge's page: refetch its files there too with `fetch(url,{cache:"reload"})` and reload that page, as for the pane.**
+9. A brand-new module must be switched on for the world: set `core.moduleConfiguration` through the bridge before going back to setup (setting it before the install is fine), then relaunch.
+10. After launch, and on every page each chat uses: Simple Calendar Reborn's client setting `open-on-load` **comes back on** (it was back on the Bridge's page after a relaunch in the 0.13.0 chat, and on every fresh hidden session) and its window (`fsc-if`, classes `simple-calendar`) covers the canvas. It's the page check `calendar-off`: run the repo's `tools/setup/calendar-off.js` through `run_script` on target `bridge`, each started session, and the pane's console; it sets the setting off and closes the window (verified 2026-11-09: a fresh AI session went from on to off and its window closed). The game may be paused.
+- Installing restarts the world: in pf2 only with nobody else online and her OK.
 
 ## 7. Local test harness pattern
 - Commit the harness to the repo under `tools/test/` with real data git-ignored (`tools/test/data/`, `tools/test/out/`, `__pycache__/`); the survey sheet's harness is the model (server.js, page.html, render.js, find.js, contact.py, README). Pure logic with no canvas runs directly in Node (`node tools/test/unit.mjs`; the Encounter Builder's is the model), which is far quicker.
