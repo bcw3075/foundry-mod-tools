@@ -776,7 +776,7 @@ class TestTightening(Base):
         self.assertIn("no recheck recorded for 0.2.0", out)      # an older release's recheck doesn't count
         write(self.tmp, "plan.md", plan)
         write(self.repo, "scripts/alpha.mjs", "// dirty\n")
-        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
+        code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x", "--next", "build")
         self.assertNotEqual(code, 0)
         self.assertIn("finish isn't clean", out)
 
