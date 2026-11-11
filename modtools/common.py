@@ -564,7 +564,7 @@ def traps_sections():
 
 def traps_pointer():
     return (f"TRAPS: before the first code change read the general traps: `guide traps` lists the sections of "
-            f"{traps_path()}; `guide traps <word> ...` prints the bullets that name what the change touches; "
+            f"{traps_path()}; `guide traps <word> ...` prints the bullets that name what the change touches (`--all` narrows to bullets naming every word); "
             f"`guide traps --section 4` prints one whole. Then record `- {TRAPS_ID} done: <what was read>` under "
             f"Setup (the gate refuses a code change without it). A new general trap goes into that doc in the same step.")
 

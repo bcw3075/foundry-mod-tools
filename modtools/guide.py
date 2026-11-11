@@ -14,9 +14,9 @@
                                (--next is required when the config has `handoff.loadByPhase`)
   guide unverified [add "<text>"]   the open unverified items, or add one (file and record)
   guide new-feature <name>   create a feature doc from the template
-  guide traps [<word> ...] [--section <n>]
+  guide traps [<word> ...] [--all] [--section <n>]
                              the general Foundry and PF2e traps (docs/foundry-traps.md in this tools repo):
-                             no word lists the sections; words print every bullet naming any of them;
+                             no word lists the sections; words print every bullet naming any of them (--all: every one);
                              --section prints one section whole. Works from any folder.
 """
 import datetime, os, re, subprocess, sys
@@ -597,6 +597,8 @@ The gate counts the open ones; above the limit in `.modtools.json` a release mus
 def cmd_traps(args):
     args = list(args)
     section = opt(args, "--section")
+    every = "--all" in args
+    args = [x for x in args if x != "--all"]
     secs = c.traps_sections()
     if section:
         hit = [(h, items) for h, items in secs if h.split(".")[0].strip() == section.strip(". ")]
@@ -612,15 +614,22 @@ def cmd_traps(args):
             print(f"  ## {h}: {len(items)} item(s), {sum(len(i) for i in items)} characters")
         print("guide traps <word> [<word> ...] prints the bullets naming any of the words; --section <n> prints one whole.")
         return 0
-    words = [w.lower() for w in args]
+    # a word matches at the start of a word ("turn" finds turn and turns, not Return); --all wants every word in the
+    # bullet, to narrow; a word found in a section's heading is said so, since headings aren't bullets (clean-chat test, 2026-11-10)
+    pats = [re.compile(r"(?<![A-Za-z0-9])" + re.escape(w), re.I) for w in args]
+    hit = (lambda t: all(p.search(t) for p in pats)) if every else (lambda t: any(p.search(t) for p in pats))
     n = 0
     for h, items in secs:
-        found = [i for i in items if any(w in i.lower() for w in words)]
+        found = [i for i in items if hit(i)]
+        if any(p.search(h) for p in pats):
+            print(f"## {h}: the heading names it; `guide traps --section {h.split('.')[0]}` prints all {len(items)} item(s)")
         if found:
             print(f"## {h}")
             print("\n".join(found))
             n += len(found)
-    print(f"\n{n} item(s) name {' or '.join(args)}." + ("" if n else " Try a shorter or different word, or `guide traps` for the sections."))
+    joiner = " and " if every else " or "
+    print(f"\n{n} item(s) name {joiner.join(args)}." + ("" if n else " Try a shorter or different word, or `guide traps` for the sections.")
+          + ("" if every or len(args) < 2 else " More words widen the search; add --all to keep only bullets naming every word."))
     return 0
 
 

@@ -41,8 +41,9 @@ askFirst: [{askfirst}]
 <!-- Each lesson starts `- [general]` (true beyond this module: Foundry, PF2e, the bridge, the tools) or
      `- [module]` (only this module), and ends with its home: `→ filed: <where>`, `→ card proposed: <skill>`
      (Rhea saves it), `→ card saved: <skill>`, or `→ owed: <where>` (finish refuses until it is filed).
-     A general lesson goes to its one home outside the repo (claude/docs-index.md): usually the project doc a
-     skill points to (`→ filed: claude/...`), a skill card only for what every chat needs. -->
+     A general lesson goes to its one home outside the repo: a Foundry or PF2e code trap into the tools repo's
+     traps doc (`→ filed: foundry-mod-tools docs/foundry-traps.md`), anything else into the project doc that
+     claude/docs-index.md names (`→ filed: claude/...`), a skill card only for what every chat needs. -->
 {learned}
 ## Private notes
 <!-- A pointer only: `see claude/<doc>` for anything that can't be public. Never the content. -->

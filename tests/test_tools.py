@@ -602,6 +602,16 @@ class TestTightening(Base):
         self.assertIn("Installing restarts the world", out)
         code, out = run(self.repo, "guide", "traps", "--section", "3")
         self.assertNotEqual(code, 0)
+        code, out = run(self.repo, "guide", "traps", "turn")            # whole-word start: not "Return to Setup"
+        self.assertIn("pf2e.startTurn", out)
+        self.assertNotIn("## 5. Release and install (verified flow)\n", out)
+        code, wide = run(self.repo, "guide", "traps", "hook", "return")
+        code, narrow = run(self.repo, "guide", "traps", "hook", "return", "--all")
+        self.assertIn("Hook handlers return nothing", narrow)
+        self.assertLess(len(narrow), len(wide))
+        self.assertIn("add --all", wide)
+        code, out = run(self.repo, "guide", "traps", "performance")     # a heading word points to its section
+        self.assertIn("the heading names it; `guide traps --section 9`", out)
         code, out = run(self.repo, "guide", "traps", "zzzznothing")
         self.assertIn("0 item(s)", out)
 
