@@ -1,7 +1,8 @@
 """scan: no private words in anything that could reach the public repo.
 
 The word list is `.private-words` at the mod repo's root: one word or phrase per line,
-`#` comments allowed, matched case-insensitively as whole words. It must be git-ignored and
+`#` comments allowed, matched case-insensitively as whole words, also with backslash escapes blanked and camelCase
+split (so `\nName` and `testName` are caught). It must be git-ignored and
 never tracked. The scan fails closed: no list, or an empty list, is a failure.
 Scanned: every tracked and untracked-not-ignored text file (the zip is checked by the gate,
 which builds it from the same tree). Exit 0 clean, 1 with hits or a missing list.
@@ -29,6 +30,18 @@ def load_words(root):
     return words
 
 
+ESCAPE = re.compile(r"\\[A-Za-z]")
+CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+
+
+def views(line):
+    """The line as written, then with backslash escapes (`\\n`, `\\t`) blanked and camelCase words split, so a word
+    glued to an escape (`\\nName`) or inside an identifier (`testName`) still stands alone (2026-11-13: a name in
+    a test's `/...\\nName.../` passed the whole-word check)."""
+    unglued = CAMEL.sub(" ", ESCAPE.sub(" ", line))
+    return (line,) if unglued == line else (line, unglued)
+
+
 def scan(root, words, files=None):
     pats = [(w, re.compile(r"(?<![A-Za-z0-9])" + re.escape(w) + r"(?![A-Za-z0-9])", re.I)) for w in words]
     hits = []
@@ -40,8 +53,9 @@ def scan(root, words, files=None):
         except Exception:
             continue
         for i, line in enumerate(text.split("\n"), 1):
+            seen = views(line)
             for w, pat in pats:
-                if pat.search(line):
+                if any(pat.search(v) for v in seen):
                     hits.append((rel, i, w))
     return hits
 

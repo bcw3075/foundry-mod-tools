@@ -226,6 +226,24 @@ class TestDoccheckAndScan(Base):
         code, out = run(self.repo, "scan")
         self.assertEqual(code, 0, out)
 
+    def test_scan_catches_a_word_glued_to_an_escape_or_inside_an_identifier(self):
+        # 2026-11-13 (Angel bot 0.1.0): a character's name written right after `\n` in a test's pattern passed the
+        # scan, because the `n` of the escape sat against the name and the whole-word check saw one word. The same
+        # for camelCase names.
+        write(self.repo, "scripts/glued.mjs", "assert.match(t, /line:\\nFakeville map/);\n")
+        code, out = run(self.repo, "scan")
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("scripts/glued.mjs:1", out)
+        write(self.repo, "scripts/glued.mjs", "const testFakevilleCase = 1;\n")
+        code, out = run(self.repo, "scan")
+        self.assertNotEqual(code, 0, out)
+        write(self.repo, "scripts/glued.mjs", "const tabbed = '\\tMadeup hollow';\n")
+        code, out = run(self.repo, "scan")
+        self.assertNotEqual(code, 0, out)
+        write(self.repo, "scripts/glued.mjs", "Fakevilled, \\nFakevilled and myFakevilled are other words.\n")
+        code, out = run(self.repo, "scan")
+        self.assertEqual(code, 0, out)
+
     def test_scan_fails_closed(self):
         os.remove(os.path.join(self.repo, ".private-words"))
         code, out = run(self.repo, "scan")
