@@ -7,7 +7,7 @@
   guide <file|feature ...>   the decisions, checks, traps and shared items for those features
   guide --diff [base]        the same, for everything changed since base (default: the record's base)
   guide --index              regenerate the feature index in DEVELOPING.md (never edit it by hand)
-  guide finish [--plan <plan>] [--rechecked "<what was rechecked, and what it fixed>"]
+  guide finish [--plan <plan>] [--rechecked "<what was rechecked, and what it fixed>"] [--keep "<doc or row> -- <why>" ...]
                                what is still unsaved: git, the record, owed lessons, branches, the lock;
                                refuses until everything was rechecked (Rhea's rule, 2026-11-09)
   guide handoff --plan <plan> --state "<text>" [--next <phase>]   the handoff, in the fixed layout
@@ -19,7 +19,7 @@
                              no word lists the sections; words print every bullet naming any of them (--all: every one);
                              --section prints one section whole. Works from any folder.
 """
-import datetime, os, re, subprocess, sys
+import datetime, fnmatch, os, re, subprocess, sys
 from . import common as c
 from . import doccheck
 
@@ -305,6 +305,49 @@ def latest_record_version(root, cfg):
     return max(vs, key=lambda v: tuple(int(x) for x in v.split(".")))
 
 
+def prev_record_version(root, cfg, version):
+    """The release before `version` among the change records, or None."""
+    folder = os.path.join(root, cfg["changes"])
+    key = lambda v: tuple(int(x) for x in v.split("."))
+    vs = sorted((fn[:-3] for fn in os.listdir(folder) if re.match(r"^\d+\.\d+\.\d+\.md$", fn)), key=key)
+    older = [v for v in vs if key(v) < key(version)]
+    return older[-1] if older else None
+
+
+def stale_docs(top, cfg, mod, prev, cur):
+    """[(key, words)] for docs in the plan's repo still standing at the previous release (Rhea, 2026-11-17: four
+    such misses in the 0.39.0 chat, each found only when she asked for a second recheck). Pure on the files: a doc
+    naming `prev` and not `cur`; a docs-index row whose Last checked names `(prev chat)` and not `(cur chat)`; the
+    baseline's table row for `mod` whose version or status cell doesn't name `cur`. Logs are left out by
+    `staleCheck.ignore`."""
+    sc = cfg.get("staleCheck") or {}
+    tok = lambda v: re.compile(r"(?<!\d)(?<!\d\.)" + re.escape(v) + r"(?!\.?\d)")   # "0.39.0." ends a sentence; "10.39.0" and "0.39.01" are other versions
+    P, C = tok(prev), tok(cur)
+    files = subprocess.run(["git", "-C", top, "ls-files", "*.md"], capture_output=True, text=True).stdout.split()
+    out = []
+    for f in files:
+        if any(fnmatch.fnmatch(f, g) for g in sc.get("ignore", [])):
+            continue
+        try:
+            text = open(os.path.join(top, f), encoding="utf-8").read()
+        except OSError:
+            continue
+        if f == sc.get("index"):
+            for line in text.split("\n"):
+                if line.startswith("|") and f"({prev} chat)" in line and f"({cur} chat)" not in line:
+                    first = line.split("|")[1].strip()[:50]
+                    out.append((f"{f} | {first}", f"{f}: the row \"{first}\" was last checked by the {prev} chat"))
+            continue
+        if f == sc.get("baseline"):
+            for line in text.split("\n"):
+                cells = [x.strip() for x in line.split("|")]
+                if len(cells) > 3 and cells[1] == mod and not (C.fullmatch(cells[2]) and C.search(cells[-2] or "")):
+                    out.append((f"{f} | {mod}", f"{f}: the {mod} row doesn't give {cur} in its version and its status"))
+        if P.search(text) and not C.search(text):
+            out.append((f, f"{f}: names {prev}, not {cur}"))
+    return out
+
+
 def cmd_map(root, cfg, feats):
     if not feats:
         print(f"No feature docs in {cfg['features']}/ yet. `guide new-feature <name>` makes one.")
@@ -412,10 +455,11 @@ RECHECK_LIST = [
     "memory notes the work touched still match the live docs (preferences: Keep memory up to date)",
     "every lesson of the chat filed in its one home, including small traps (a test trap, a module's behaviour, a pane quirk)",
     "the live server: no test documents, chat cards, sessions or fights left; the world and scene as the handoff will say",
+    "usage: anything that ran far past its ceiling or what was planned (a reviewer, a stuck call, a test round) is a lesson to file (2026-11-17)",
 ]
 
 
-def cmd_finish(root, cfg, plan_path=None, version=None, rechecked=None):
+def cmd_finish(root, cfg, plan_path=None, version=None, rechecked=None, keep=()):
     issues, yellow, version = finish_state(root, cfg, version)
     # Rhea's rule (2026-11-09): when a task is complete, go back through and recheck everything to make sure everything is
     # updated correctly before saying it's finished. The script can't do the recheck; it refuses until one is recorded.
@@ -428,6 +472,24 @@ def cmd_finish(root, cfg, plan_path=None, version=None, rechecked=None):
             plan = load_plan(cfg, plan_path)
         except c.Fail as e:
             issues.append(str(e))
+    if plan is not None and version:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=os.path.dirname(os.path.abspath(plan_path)),
+                             capture_output=True, text=True)
+        prev = prev_record_version(root, cfg, version)
+        if top.returncode == 0 and prev:
+            kept = [k.split(" -- ", 1) for k in keep]
+            bad = [k for k in kept if len(k) < 2 or len(k[1].split()) < 3]
+            if bad:
+                issues.append('each --keep needs "<doc or row> -- <why it stays as it is, in a few words>"')
+            used = []
+            for key, words in stale_docs(top.stdout.strip(), cfg, c.manifest_id(root, cfg) or os.path.basename(root), prev, version):
+                k = next((k for k in kept if len(k) == 2 and key.startswith(k[0].strip())), None)
+                if k:
+                    used.append(f"{k[0].strip()} ({k[1].strip()})")
+                else:
+                    issues.append(f'stale: {words}: update it for {version}, or `--keep "{key} -- <why it stays>"`')
+            if used and rechecked:
+                rechecked = f"{rechecked} Kept as they were: {'; '.join(used)}."
     if plan is not None:
         mod = c.manifest_id(root, cfg) or os.path.basename(root)
         held = plan.lock_for(mod)
@@ -655,12 +717,15 @@ def main(argv=None):
         state = opt(argv, "--state")
         next_phase = opt(argv, "--next")
         rechecked = opt(argv, "--rechecked")
+        keep = []
+        while "--keep" in argv:
+            keep.append(opt(argv, "--keep"))
         if not argv:
             code = cmd_map(root, cfg, feats)
         elif argv[0] == "start":
             code = cmd_start(root, cfg, argv[1] if len(argv) > 1 else None, " ".join(argv[2:]) or None, plan_path, takeover)
         elif argv[0] == "finish":
-            code = cmd_finish(root, cfg, plan_path, argv[1] if len(argv) > 1 else None, rechecked)
+            code = cmd_finish(root, cfg, plan_path, argv[1] if len(argv) > 1 else None, rechecked, keep)
         elif argv[0] == "handoff":
             code = cmd_handoff(root, cfg, plan_path, state, next_phase)
         elif argv[0] == "unverified":

@@ -975,5 +975,27 @@ class TestTightening(Base):
         self.assertEqual(cm.Plan(self.plan).lock_for("fixmod")[3], "other1")
 
 
+
+class TestStaleDocs(unittest.TestCase):
+    """`guide finish`'s stale check (Rhea, 2026-11-17: "stop missing things you need to update")."""
+    def test_what_still_stands_at_the_previous_release(self):
+        sys.path.insert(0, TOOLS)
+        from modtools import guide as g, common as cm
+        top = tempfile.mkdtemp()
+        git(top, "init", "-q")
+        write(top, "mirror/docs-index.md", "| Fact | Home | Last |\n|---|---|---|\n| Drift check: how | x | 2026-11-17 (0.38.0 chat): ran |\n| Done row | y | 2026-11-17 (0.39.0 chat): ok |\n| Old row | z | 2026-11-10 (0.30.0 chat) |\n")
+        write(top, "mirror/foundry-version-baseline.md", "| mod | 0.39.0 | on | off | 1 / 0 | releases up to 0.38.0 |\n0.39.0 installed\n")
+        write(top, "plan/design.md", "Release 4 built as 0.38.0.\n")
+        write(top, "plan/done.md", "0.38.0 then 0.39.0.\n")
+        write(top, "plan/x-history.md", "only 0.38.0 here\n")
+        write(top, "plan/other.md", "version 10.38.0 and 0.38.01 are not it\n")
+        write(top, "plan/end.md", "Built as 0.38.0. Then 0.39.0.\n")
+        git(top, "add", "-A")
+        keys = [k for k, _ in g.stale_docs(top, dict(cm.DEFAULTS), "mod", "0.38.0", "0.39.0")]
+        self.assertEqual(sorted(keys), ["mirror/docs-index.md | Drift check: how", "mirror/foundry-version-baseline.md | mod", "plan/design.md"])
+        write(top, "mirror/foundry-version-baseline.md", "| mod | 0.39.0 | on | off | 1 / 0 | releases up to 0.39.0 |\n")
+        self.assertNotIn("mirror/foundry-version-baseline.md | mod", [k for k, _ in g.stale_docs(top, dict(cm.DEFAULTS), "mod", "0.38.0", "0.39.0")])
+        shutil.rmtree(top)
+
 if __name__ == "__main__":
     unittest.main()

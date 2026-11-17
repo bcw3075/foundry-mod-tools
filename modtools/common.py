@@ -47,6 +47,11 @@ DEFAULTS = {
     "planDoc": None,                        # the private project doc holding the lock, Next and the questions
     "pageChecks": [],                       # recurring traps made into scripts run on every page each chat
     "handoff": {"load": "", "where": []},   # fixed lines for `guide handoff`
+    # `guide finish` (Rhea, 2026-11-17: "Can you learn from this so you stop missing things you need to update?"): in the
+    # plan's own repo, a doc that names the previous release but not this one, a docs-index row last checked by the
+    # previous release's chat and not this one, and the baseline's row for the module without this version are stale
+    "staleCheck": {"ignore": ["*history*", "*archive*", "review/*", "plan/samples*"],
+                   "index": "mirror/docs-index.md", "baseline": "mirror/foundry-version-baseline.md"},
 }
 
 

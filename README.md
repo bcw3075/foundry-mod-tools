@@ -124,6 +124,16 @@ so deleting it can't switch the rules off.
    answer to the plan doc's `## Last recheck` (made if missing); `handoff` refuses until that line is for the current
    release, and points to it (one home since 2026-11-10: the text is in the plan only, not copied into the handoff or the record). A script can't do the recheck; it makes skipping it a visible act. Added after 0.18.0's
    finish missed a stale roadmap line and two unsaved traps, found only when Rhea asked "No updates needed?".
+9. **Docs still standing at the last release (Rhea, 2026-11-17: "Can you learn from this so you stop missing things you
+   need to update?").** In the plan's own repo (the clone of the private repo), `finish` refuses while: a doc names the
+   previous release's version and not this one; a row of the docs index (`staleCheck.index`) was last checked by the
+   previous release's chat (`(0.38.0 chat)`) and not this one's; or the baseline's row for the module
+   (`staleCheck.baseline`) doesn't give this version in both its version and its status cell. Logs are left out
+   (`staleCheck.ignore`: history, archives, the efficiency review, samples). A doc that rightly stays as it is gets
+   `--keep "<doc or row> -- <why, in a few words>"`, and the reason goes into the plan's Last recheck line. Why: the
+   0.39.0 chat finished with three such docs stale (seven index rows, the reactions design doc's Built line, the
+   baseline's status cell), found only when Rhea asked for a second recheck; run on that state, this check names all
+   nine. It can't see a lesson nobody wrote down: the RECHECK list asks for usage overruns too.
 Also: a shared check is listed once even when it's shared with several touched features.
 
 ## What the gate requires
