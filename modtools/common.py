@@ -44,7 +44,7 @@ DEFAULTS = {
     "unverifiedLimit": 8,                   # above this many open at a release's start, it must close some
     "closeOutAtLeast": 3,                   # how many a close-out pass closes (or down to the limit)
     "protocol2From": None,                  # records from this version on must say `protocol: 2`
-    "planDoc": None,                        # the private project doc holding the lock, Next and the questions
+    "planDoc": None,                        # the private plan holding the lock, Next and the questions (its path in the private repo, e.g. plan/<module>-plan.md), or a doc that carries its Status line
     "pageChecks": [],                       # recurring traps made into scripts run on every page each chat
     "handoff": {"load": "", "where": []},   # fixed lines for `guide handoff`
     # `guide finish` (Rhea, 2026-11-17: "Can you learn from this so you stop missing things you need to update?"): in the
@@ -664,9 +664,11 @@ def needs_lesson_scope(cfg, version, meta):
 def lesson_scope_problems(body):
     """Each lesson starts `- [general]` (true beyond this module: Foundry, PF2e, the bridge, the tools) or
     `- [module]` (only this module: any home). A general lesson must reach a home every chat can find: a skill
-    card (`→ card proposed:` / `→ card saved:`) a project doc (`→ filed: claude/...`) or the general traps doc (`→ filed: foundry-mod-tools docs/foundry-traps.md`), whichever is that
-    fact's one home (claude/docs-index.md); a module's own repo docs alone aren't enough. Skills stay lean:
-    most general lessons belong in the project doc a skill points to, not the skill itself."""
+    card (`→ card proposed:` / `→ card saved:`), a doc in Rhea's private repo (`→ filed: angel-mod-private docs/...`;
+    `claude/...`, the old project-doc paths, still count for records written before the 2026-11-21 move) or the
+    general traps doc (`→ filed: foundry-mod-tools docs/foundry-traps.md`), whichever is that fact's one home
+    (the private repo's docs/docs-index.md); a module's own repo docs alone aren't enough. Skills stay lean:
+    most general lessons belong in the doc a skill points to, not the skill itself."""
     out = []
     for line, kind, home in learned(body):
         m = SCOPE_RE.match(line)
@@ -676,8 +678,8 @@ def lesson_scope_problems(body):
         if m.group(1).lower() != "general" or kind in (None, "owed"):
             continue
         homes = [(k.lower(), h.strip()) for k, h in LEARN_RE.findall(line)]
-        if not any(k in ("card proposed", "card saved") or (k == "filed" and ("claude/" in h or "foundry-mod-tools" in h)) for k, h in homes):
-            out.append(f"general lesson filed only in this module's docs: file it in its one home too (a project doc `→ filed: claude/...`, the general traps `→ filed: foundry-mod-tools docs/foundry-traps.md`, or a skill card `→ card proposed: <skill>`): {line[:90]}")
+        if not any(k in ("card proposed", "card saved") or (k == "filed" and ("claude/" in h or "foundry-mod-tools" in h or "angel-mod-private" in h)) for k, h in homes):
+            out.append(f"general lesson filed only in this module's docs: file it in its one home too (a doc in the private repo `→ filed: angel-mod-private docs/...`, the general traps `→ filed: foundry-mod-tools docs/foundry-traps.md`, or a skill card `→ card proposed: <skill>`): {line[:90]}")
     return out
 
 

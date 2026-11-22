@@ -520,7 +520,7 @@ class TestTightening(Base):
         self.assertFalse(os.path.exists(os.path.join(self.repo, "docs/changes/0.2.0.md")))
         code, out = self.start()
         self.assertEqual(code, 0, out)
-        self.assertIn("project_write it back", out)
+        self.assertIn("copy it back to its home `claude/fixture-plan.md`", out)
         self.assertRegex(read(self.tmp, "plan.md"), r"- lock fixmod 0\.2\.0 started \S+ token \w+")
         code, out = self.start()           # the same chat again: fine
         self.assertEqual(code, 0, out)
@@ -824,14 +824,14 @@ class TestTightening(Base):
         code, out = self.start()
         self.assertEqual(code, 0, out)
         self.assertIn("commit and push it (", out)
-        self.assertNotIn("project_write it back", out)
+        self.assertNotIn("copy it back to its home", out)
         self.finish_change()
         run(self.repo, "gate")
         git(self.repo, "add", "-A"); git(self.repo, "commit", "-q", "-m", "0.2.0")
         subprocess.run(["git", "push", "-q", "origin", "main"], cwd=self.repo, env=dict(os.environ, MODTOOLS=TOOLS))
         code, out = run(self.repo, "guide", "finish", "--plan", self.plan, "--rechecked", "reread the record, docs, plan and roadmap; nothing stale")
         self.assertEqual(code, 0, out)
-        self.assertIn("signpost: write the short project doc `claude/fixture-plan.md` again", out)
+        self.assertIn("signpost: write the Status line of `claude/fixture-plan.md` again", out)
         code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
         self.assertNotEqual(code, 0)
         self.assertIn("has changes that aren't committed", out)
@@ -843,7 +843,25 @@ class TestTightening(Base):
         code, out = run(self.repo, "guide", "handoff", "--plan", self.plan, "--state", "x")
         self.assertEqual(code, 0, out)
         self.assertIn("plan/p.md in the private repo", out)
-        self.assertIn("claude/fixture-plan.md is its short signpost for voice chats", out)
+        self.assertIn("claude/fixture-plan.md carries its Status line", out)
+        self.assertNotIn("voice", out)
+
+    def test_no_signpost_when_plan_doc_is_the_plan(self):
+        """Since the 2026-11-21 move: planDoc names the plan's own path in the private repo, so no signpost."""
+        sys.path.insert(0, TOOLS)
+        from modtools import guide as gd
+        priv = os.path.join(self.tmp, "priv2")
+        os.makedirs(os.path.join(priv, "plan"))
+        subprocess.run(["git", "init", "-q", priv], check=True)
+        plan = os.path.join(priv, "plan", "m-plan.md")
+        with open(plan, "w") as f:
+            f.write("# plan\n")
+        self.assertIsNone(gd.signpost({"planDoc": "plan/m-plan.md"}, plan))
+        self.assertEqual(gd.signpost({"planDoc": "angel-bot/design.md"}, plan), "angel-bot/design.md")
+        loose = os.path.join(self.tmp, "loose-plan.md")
+        with open(loose, "w") as f:
+            f.write("# plan\n")
+        self.assertEqual(gd.signpost({"planDoc": "plan/m-plan.md"}, loose), "plan/m-plan.md")
 
     # the 0.16.0 finding: a check shared with two touched features was listed twice
     def test_shared_item_listed_once(self):
@@ -901,6 +919,9 @@ class TestTightening(Base):
         fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md, claude/foundry-op-recipes.md\n")
         code, out = run(self.repo, "gate", "--check")
         self.assertNotIn("lessons:", out)
+        fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: docs/features/alpha.md, angel-mod-private docs/foundry-op-recipes.md\n")
+        code, out = run(self.repo, "gate", "--check")           # the private repo's docs are a home (the 2026-11-21 move)
+        self.assertNotIn("general lesson filed only", out)
         fill_record(self.repo, "0.2.0", checks, learned="- [general] a Foundry trap → filed: foundry-mod-tools docs/foundry-traps.md\n")
         code, out = run(self.repo, "gate", "--check")           # the general traps doc is a home too (2026-11-10)
         self.assertNotIn("general lesson filed only", out)

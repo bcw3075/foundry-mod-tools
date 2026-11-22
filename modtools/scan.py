@@ -14,7 +14,7 @@ from . import common as c
 def load_words(root):
     p = os.path.join(root, c.WORDS_NAME)
     if not os.path.isfile(p):
-        raise c.Fail(f"{c.WORDS_NAME} is missing at the repo root: copy it from the private project doc (the scan fails closed)")
+        raise c.Fail(f"{c.WORDS_NAME} is missing at the repo root: copy it from private-words.txt in the private repo bcw3075/angel-mod-private (the scan fails closed)")
     if not c.is_ignored(root, c.WORDS_NAME):
         raise c.Fail(f"{c.WORDS_NAME} is not git-ignored; add it to .gitignore before anything else")
     if c.WORDS_NAME in c.tracked_files(root):

@@ -12,12 +12,12 @@
   "extraDocs": [],
   "setupChecks": [
     {"path": "../lythara-survey-sheet", "hint": "clone the Survey Sheet repo beside this one"},
-    {"path": "tools/test/data/spots.json", "hint": "copy the test data from the private project docs"}
+    {"path": "tools/test/data/spots.json", "hint": "copy the test data from test-data/ in the private repo bcw3075/angel-mod-private"}
   ],
   "unverified": "docs/unverified.md",
   "unverifiedLimit": 8,
   "closeOutAtLeast": 3,
-  "planDoc": "claude/<module>-plan.md",
+  "planDoc": "plan/<module>-plan.md",
   "pageChecks": [
     {"id": "calendar-off", "why": "Simple Calendar's window comes back on each page", "script": "tools/setup/calendar-off.js", "pages": "the Bridge's page, each hidden session, the browser pane"}
   ],
@@ -27,11 +27,11 @@
       "build": "Load foundry-module-dev and the module's skill; `guide start`. Load foundry-vtt-operator, foundry-bridge and foundry-test-process when the chat first touches the live server (the test build), not before.",
       "live": "Load foundry-module-dev, foundry-vtt-operator, foundry-bridge, foundry-test-process and the module's skill."
     },
-    "where": ["claude/<module>.md (history)"]},
+    "where": ["logs/<module>.md in the private repo bcw3075/angel-mod-private (history)"]},
   "finishList": [
-    "project doc for this module (what changed, what was verified)",
+    "the module's history doc in the private repo (what changed, what was verified)",
     "the module's skill card, if the skill text changed",
-    "claude/foundry-version-baseline.md if an installed version changed",
-    "claude/docs-index.md rows and Last checked"
+    "docs/foundry-version-baseline.md in the private repo if an installed version changed",
+    "docs/docs-index.md rows and Last checked (private repo)"
   ]
 }

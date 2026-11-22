@@ -27,7 +27,7 @@ from . import doccheck
 def setup_problems(root, cfg):
     probs = []
     if not os.path.isfile(os.path.join(root, c.WORDS_NAME)):
-        probs.append(f"{c.WORDS_NAME} is missing: copy the private word list from the project doc into the repo root (git-ignored)")
+        probs.append(f"{c.WORDS_NAME} is missing: copy private-words.txt from the private repo bcw3075/angel-mod-private into the repo root (git-ignored)")
     for chk in cfg.get("setupChecks", []):
         if not os.path.exists(os.path.join(root, chk["path"])):
             probs.append(f"{chk['path']} is missing: {chk.get('hint', '')}".rstrip(": "))
@@ -55,8 +55,8 @@ def lock_token(root):
 
 def plan_home(path):
     """Where the plan passed with --plan lives. In a git clone (the private repo, since 2026-11-10):
-    (label, problem), where problem says what isn't committed or pushed, or is None. A loose copy of
-    a project doc: (None, None)."""
+    (label, problem), where problem says what isn't committed or pushed, or is None. A loose copy
+    outside a git clone: (None, None)."""
     d = os.path.dirname(os.path.abspath(path))
     def git(*a):
         return subprocess.run(["git", *a], cwd=d, capture_output=True, text=True)
@@ -81,14 +81,26 @@ def save_words(cfg, path):
     label, _ = plan_home(path)
     if label:
         return f"commit and push it ({label})"
-    return f"project_write it back to `{cfg['planDoc']}`"
+    return f"copy it back to its home `{cfg['planDoc']}` and commit and push it there"
+
+
+def signpost(cfg, path):
+    """The doc that carries the plan's Status line, when it isn't the plan itself (None if it is).
+    Since the 2026-11-21 move there are no voice-chat signposts: planDoc is usually the plan's own path."""
+    d = os.path.dirname(os.path.abspath(path))
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=d, capture_output=True, text=True)
+    if top.returncode == 0:
+        rel = os.path.relpath(os.path.abspath(path), top.stdout.strip())
+        if os.path.normpath(cfg["planDoc"]) == os.path.normpath(rel):
+            return None
+    return cfg["planDoc"]
 
 
 def load_plan(cfg, path):
     if not cfg.get("planDoc"):
         return None
     if not path:
-        raise c.Fail(f"--plan <file> is required: the plan's path in the clone of the private repo (or, for a plan kept only as the project doc `{cfg['planDoc']}`, a copy outside this repo)")
+        raise c.Fail(f"--plan <file> is required: the plan's path in the clone of the private repo (planDoc: `{cfg['planDoc']}`)")
     if not os.path.isfile(path):
         raise c.Fail(f"--plan {path}: no such file")
     plan = c.Plan(path)
@@ -451,7 +463,7 @@ def finish_state(root, cfg, version=None):
 
 RECHECK_LIST = [
     "every doc the chat touched, reread after the last change: the change record, the feature docs, DEVELOPING.md",
-    "every project doc that names this module or its version: the plan doc, the history doc, the baseline, `claude/mod-roadmap.md`, `claude/docs-index.md` (Last checked)",
+    "every doc that names this module or its version: the plan, the history doc, and in the private repo the baseline, `docs/mod-roadmap.md`, `docs/docs-index.md` (Last checked)",
     "memory notes the work touched still match the live docs (preferences: Keep memory up to date)",
     "every lesson of the chat filed in its one home, including small traps (a test trap, a module's behaviour, a pane quirk)",
     "the live server: no test documents, chat cards, sessions or fights left; the world and scene as the handoff will say",
@@ -504,9 +516,9 @@ def cmd_finish(root, cfg, plan_path=None, version=None, rechecked=None, keep=())
             print(f"recheck: recorded in {plan_path} for {version}")
         if held and held[3] == tok and not issues:
             print(f"lock: cleared in {plan_path}; {save_words(cfg, plan_path)}")
-            if plan_home(plan_path)[0]:
-                print(f"signpost: write the short project doc `{cfg['planDoc']}` again from the plan's Status and Next "
-                      "(voice chats can't see the repo; they read the signpost)")
+            sp = signpost(cfg, plan_path)
+            if plan_home(plan_path)[0] and sp:
+                print(f"signpost: write the Status line of `{sp}` again from the plan's Status and Next")
         elif held:
             print("lock: kept (the build isn't finished: see below)")
     print("In the repo:")
@@ -587,11 +599,12 @@ def cmd_handoff(root, cfg, plan_path=None, state=None, next_phase=None):
     lines += [f"- {rel} (this release)", f"- {cfg['unverified']} (unverified items)"]
     if cfg.get("planDoc"):
         if home:
-            lines.append(f"- {home} in the private repo (the plan: status, Next, open questions, the build lock); "
-                         f"{cfg['planDoc']} is its short signpost for voice chats")
+            sp = signpost(cfg, plan_path)
+            lines.append(f"- {home} in the private repo (the plan: status, Next, open questions, the build lock)"
+                         + (f"; {sp} carries its Status line" if sp else ""))
         else:
             lines.append(f"- {cfg['planDoc']} (status, Next, open questions, the build lock)")
-    lines += ["", "Reminder: archive the old chat (⋮ > Archive)."]
+    lines += ["", "Reminder: archive the old chat (⋮ > Archive), or, in a coordinator project, resolve the thread."]
     print("```\n" + "\n".join(lines) + "\n```")
     for y in yellow:
         print("🟡", y)

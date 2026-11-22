@@ -42,8 +42,8 @@ askFirst: [{askfirst}]
      `- [module]` (only this module), and ends with its home: `→ filed: <where>`, `→ card proposed: <skill>`
      (Rhea saves it), `→ card saved: <skill>`, or `→ owed: <where>` (finish refuses until it is filed).
      A general lesson goes to its one home outside the repo: a Foundry or PF2e code trap into the tools repo's
-     traps doc (`→ filed: foundry-mod-tools docs/foundry-traps.md`), anything else into the project doc that
-     claude/docs-index.md names (`→ filed: claude/...`), a skill card only for what every chat needs. -->
+     traps doc (`→ filed: foundry-mod-tools docs/foundry-traps.md`), anything else into the doc in the private
+     repo that its docs/docs-index.md names (`→ filed: angel-mod-private docs/...`), a skill card only for what every chat needs. -->
 {learned}
 ## Private notes
-<!-- A pointer only: `see claude/<doc>` for anything that can't be public. Never the content. -->
+<!-- A pointer only: `see angel-mod-private docs/<doc>` for anything that can't be public. Never the content. -->

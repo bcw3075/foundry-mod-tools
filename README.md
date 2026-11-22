@@ -77,7 +77,7 @@ so deleting it can't switch the rules off.
    **Lesson scope (Rhea, 2026-11-09):** records with `lessonScope: 1` (the template adds it; set
    `lessonScopeFrom` in `.modtools.json` so deleting it can't switch it off) tag every lesson `- [general]`
    (true beyond this module: Foundry, PF2e, the bridge, the tools) or `- [module]`. A general lesson must
-   reach its one home outside the repo: usually the project doc a skill points to (`→ filed: claude/...`),
+   reach its one home outside the repo: usually the doc in Rhea's private repo a skill points to (`→ filed: angel-mod-private docs/...`; old records' `claude/...` still count),
    a skill card (`→ card proposed:`) only for what every chat needs, since skills stay lean. The gate and
    `finish` both refuse a general lesson filed only in the module's own docs. Added after general lessons
    were twice filed only in a module's docs.
@@ -104,22 +104,23 @@ so deleting it can't switch the rules off.
    FIRST, listed in the record's frontmatter `askFirst`, and written `- q-N pending` under Asked first;
    the gate refuses while one is pending or has no line. `asked` (Rhea: later) still counts toward overdue.
 6. **One build chat at a time.** With `planDoc` set, `start` and `finish` need `--plan <path>`:
-   the plan file in the clone of Rhea's private repo (since 2026-11-10; the chat workspace can no longer copy
-   a project doc to disk, so the plan's one home is that repo and `planDoc` names its short project-doc
-   signpost for voice chats). The private doc never goes in the mod repo. `start` writes
+   the plan file in the clone of Rhea's private repo (its one home since 2026-11-10). `planDoc` is the plan's
+   path in that repo (e.g. `plan/<module>-plan.md`); since the 2026-11-21 move there are no voice-chat
+   signposts, and `finish` asks for a signpost only when `planDoc` names another doc that carries the plan's
+   Status line (the Angel bot's `angel-bot/design.md`). The private doc never goes in the mod repo. `start` writes
    `- lock <mod> <version> started <time> token <t>` under `## Build lock` (the token lives in the
    clone's git config) and refuses when another chat's token is there, unless Rhea agreed
    (`--take-over "<her OK>"`, kept on the lock line); `finish` clears it when nothing is left, and
    `handoff` refuses while it's held. After each, the chat commits and pushes the plan: the scripts print
-   the words, `finish` reminds the chat to write the signpost again, and `handoff` refuses a plan in a git
+   the words, `finish` reminds the chat to write any signpost again, and `handoff` refuses a plan in a git
    clone that isn't committed and pushed. (Why: on 2026-11-09 a chat cleared the lock only in its local copy, and the next chat's `guide start` refused until Rhea went back to the old chat.) (A plan passed as a loose file is still accepted; then the chat
-   writes it back with project_write.)
+   copies it back to its home and commits it.)
 7. **Leftover branches listed.** `finish` notes every remote branch other than main. Rhea (2026-11-09):
    no deletes as they come; they go in one cleanup at the end of the project, so this is a note, not a 🟡 line.
 8. **Recheck before finished (Rhea, 2026-11-09).** Her rule: when a task is complete, go back through and recheck
    everything to make sure everything is updated correctly before saying it's finished. `finish` refuses (and keeps the
    lock) until it is run with `--rechecked "<what was rechecked, and what it fixed>"`, and prints its RECHECK list: every
-   doc the chat touched reread, every project doc naming the module or its version (plan, history, baseline, roadmap,
+   doc the chat touched reread, every doc naming the module or its version (plan, history, and in the private repo the baseline, roadmap,
    docs index), memory notes, every lesson filed (small traps too), and the live server left clean. It writes the
    answer to the plan doc's `## Last recheck` (made if missing); `handoff` refuses until that line is for the current
    release, and points to it (one home since 2026-11-10: the text is in the plan only, not copied into the handoff or the record). A script can't do the recheck; it makes skipping it a visible act. Added after 0.18.0's
