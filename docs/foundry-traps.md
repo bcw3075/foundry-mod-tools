@@ -155,6 +155,8 @@ let v; for (let i=0;i<14;i++){await new Promise(r=>setTimeout(r,2000)); v=(await
 
 - **A PF2e action card posted by script needs `use()`, not `toMessage()`** (Encounter Builder close-out sitting 4, 2026-11-18, PF2e 8.7.0): `game.pf2e.actions.get("ready").toMessage({ actors: [actor] })` posts the card with an empty speaker (no scene, actor or token), even with the token controlled, so anything that reads `message.speaker.token` (a module watching for action cards) ignores it; `.use({ actors: [actor] })` posts it with the token as speaker, as a player's click does. Delete a speakerless test card afterwards.
 
+- **A hidden test page can't un-minimize a window** (14.370, Encounter Builder 0.39.10, 2026-11-23): on the bridge's hidden Playwright pages `maximize()` after `minimize()` leaves any ApplicationV2 window (Foundry's own Settings too) at its 36 to 52 px title bar with `minimized` false. `maximize` reads the computed `max-height` while its CSS transition is still running, and on those pages the transition never finishes, so `setPosition` clamps the height to the bar. Before judging a minimize or maximize there, add `*{transition:none!important}` to the page (then both restore fully), and remove it afterwards.
+
 ## 9. Canvas and performance lessons
 - Chrome defers canvas drawing; per-stage timings land at the next flush. Time a stage with `ctx.getImageData(0,0,1,1)` after it.
 - `filter: blur()` on a big canvas costs a whole-canvas pass per call: blur on a small scratch canvas and composite (38 s → 0.5 s).
